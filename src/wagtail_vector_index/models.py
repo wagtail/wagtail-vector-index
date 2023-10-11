@@ -5,11 +5,10 @@ from django.contrib.contenttypes.models import ContentType
 from django.core import checks
 from django.core.exceptions import FieldDoesNotExist
 from django.db import models, transaction
-from wagtail.search.index import BaseField
-from wagtail.models import Page
+from every_ai import EmbeddingAbility
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-
-from every_ai import AIBackend, EmbeddingAbility
+from wagtail.models import Page
+from wagtail.search.index import BaseField
 
 from wagtail_vector_index.index.base import Document
 from wagtail_vector_index.index.exceptions import IndexedTypeFromDocumentError

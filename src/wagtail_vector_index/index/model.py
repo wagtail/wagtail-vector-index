@@ -1,4 +1,4 @@
-from typing import Iterable, List, TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable, List
 
 from django.apps import apps
 from django.db import models
@@ -8,7 +8,7 @@ from .base import Document, VectorIndex
 from .registry import registry
 
 if TYPE_CHECKING:
-    from wagtail_vector_index.models import VectorIndexedMixin
+    pass
 
 
 class ModelVectorIndex(VectorIndex["VectorIndexedMixin"]):

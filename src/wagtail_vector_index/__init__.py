@@ -1,5 +1,3 @@
-from .base import Document
-
 default_app_config = "wagtail_vector_index.apps.WagtailVectorIndexAppConfig"
 
 

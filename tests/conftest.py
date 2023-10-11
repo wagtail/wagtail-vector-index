@@ -1,8 +1,7 @@
 from contextlib import contextmanager
 
 import pytest
-
-from every_ai import registry, AIBackend
+from every_ai import AIBackend, registry
 
 
 @registry.register("mock")

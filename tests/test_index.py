@@ -1,14 +1,13 @@
 import pytest
 from factories import ExamplePageFactory
 from faker import Faker
-from testapp.models import DifferentPage, ExamplePage
-
-from wagtail_vector_index.models import EmbeddingField
+from testapp.models import ExamplePage
 from wagtail_vector_index.index import (
     VectorIndex,
     get_vector_indexes,
     registry,
 )
+from wagtail_vector_index.models import EmbeddingField
 
 fake = Faker()
 
