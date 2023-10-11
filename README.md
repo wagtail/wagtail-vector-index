@@ -12,14 +12,6 @@ This provides the backbone for features including:
 * Similarity search
 * Content recommendations
 
-## Requirements & Costs
-
-You'll need a paid OpenAI account and an API key. There'll also be some cost involved. For the API used here, OpenAI charges $0.002 for 1,000 tokens (a word is about 1.3 tokens). Every token sent to the API, and every token we get back counts, so you can expect using 'correction' on 1,000 word paragraph to cost roughly:
-
-* (1,000 * 1.3) + (35 * 1.3) (for the initial prompt) tokens sent to the API
-* \+ (1,000 * 1.3) tokens received from the API
-* = 2,645 tokens = $0.0053
-
 ## Links
 
 - [Documentation](https://github.com/tomusher/wagtail-vector-index/blob/main/README.md)
@@ -30,7 +22,7 @@ You'll need a paid OpenAI account and an API key. There'll also be some cost inv
 
 ## Supported Versions
 
-* Wagtail 4.0, 4.1 and 4.2
+* Wagtail 4.0, 4.1, 4.2, 5.0, 5.1
 
 ## Contributing
 
