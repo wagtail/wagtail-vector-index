@@ -29,7 +29,8 @@ dependencies = [
     "Wagtail>=5.2",
     "tiktoken>=0.3.3",
     "langchain>=0.0.311",
-    "every-ai>=1.1.1"
+    "every-ai>=1.1.1",
+    "aiohttp>=3.9.0b0; python_version >= '3.12'",
 ]
 [project.optional-dependencies]
 numpy = [
