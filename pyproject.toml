@@ -48,7 +48,8 @@ testing = [
     "pytest>=7.4.2",
     "pytest-django>=4.5.2",
     "wagtail-factories>=4.1.0",
-    "factory-boy>=3.3.0"
+    "factory-boy>=3.3.0",
+    "coverage>=7.0,<8.0",
 ]
 docs = [
     "mkdocs>=1.5.3",
@@ -59,16 +60,8 @@ docs = [
 [project.urls]
 Home = "https://github.com/tomusher/wagtail-vector-index"
 
-[tool.ruff]
-select = ["F", "E", "C90", "I", "B", "DJ", "RUF", "TRY", "C4"]
-ignore = ["TRY003", "E501", "RUF012"]
-
 [tool.flit.module]
 name = "wagtail_vector_index"
-
-[tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "testapp.settings"
-pythonpath = ["./", "./tests"]
 
 [tool.flit.sdist]
 include = [
@@ -86,3 +79,11 @@ exclude = [
     "*.ini",
     "*.yml"
 ]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "testapp.settings"
+pythonpath = ["./", "./tests"]
+
+[tool.ruff]
+select = ["F", "E", "C90", "I", "B", "DJ", "RUF", "TRY", "C4"]
+ignore = ["TRY003", "E501", "RUF012"]
