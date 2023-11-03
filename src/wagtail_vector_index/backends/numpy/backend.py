@@ -4,8 +4,8 @@ from typing import List
 
 import numpy as np
 
-from wagtail_vector_index import Document
 from wagtail_vector_index.backends import Backend, Index, SearchResponseDocument
+from wagtail_vector_index.base import Document
 from wagtail_vector_index.index import get_vector_indexes
 
 logger = logging.Logger(__name__)
