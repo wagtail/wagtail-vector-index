@@ -15,29 +15,22 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Framework :: Django",
-    "Framework :: Django :: 3.0",
-    "Framework :: Django :: 3.1",
-    "Framework :: Django :: 3.2",
-    "Framework :: Django :: 4.0",
-    "Framework :: Django :: 4.1",
     "Framework :: Django :: 4.2",
     "Framework :: Wagtail",
-    "Framework :: Wagtail :: 4",
     "Framework :: Wagtail :: 5",
 ]
 dynamic = ["version"]
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 dependencies = [
-    "Django>=3.0",
-    "Wagtail>=4.0",
+    "Django>=4.2",
+    "Wagtail>=5.2",
     "tiktoken>=0.3.3",
     "langchain>=0.0.311",
-    "every-ai>=1.1.1"
+    "every-ai>=1.1.1",
+    "aiohttp>=3.9.0b0; python_version >= '3.12'",
 ]
 [project.optional-dependencies]
 numpy = [
@@ -55,7 +48,8 @@ testing = [
     "pytest>=7.4.2",
     "pytest-django>=4.5.2",
     "wagtail-factories>=4.1.0",
-    "factory-boy>=3.3.0"
+    "factory-boy>=3.3.0",
+    "coverage>=7.0,<8.0",
 ]
 docs = [
     "mkdocs>=1.5.3",
@@ -66,16 +60,8 @@ docs = [
 [project.urls]
 Home = "https://github.com/tomusher/wagtail-vector-index"
 
-[tool.ruff]
-select = ["F", "E", "C90", "I", "B", "DJ", "RUF", "TRY", "C4"]
-ignore = ["TRY003", "E501", "RUF012"]
-
 [tool.flit.module]
 name = "wagtail_vector_index"
-
-[tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "testapp.settings"
-pythonpath = ["./", "./tests"]
 
 [tool.flit.sdist]
 include = [
@@ -93,3 +79,11 @@ exclude = [
     "*.ini",
     "*.yml"
 ]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "testapp.settings"
+pythonpath = ["./", "./tests"]
+
+[tool.ruff]
+select = ["F", "E", "C90", "I", "B", "DJ", "RUF", "TRY", "C4"]
+ignore = ["TRY003", "E501", "RUF012"]

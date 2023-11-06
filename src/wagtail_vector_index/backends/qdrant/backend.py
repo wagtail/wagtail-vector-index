@@ -3,9 +3,9 @@ from typing import List, Optional
 
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qdrant_models
-from wagail_ai.index import Document
 
 from wagtail_vector_index.backends import Backend, Index, SearchResponseDocument
+from wagtail_vector_index.base import Document
 
 
 @dataclass

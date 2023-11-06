@@ -1,9 +1,19 @@
 [run]
 branch = True
-include = wagtail_vector_index/*
+parallel = true
+
+source = wagtail_vector_index
 omit = */migrations/*,*/tests/*
 
+[paths]
+source = src, .tox/py*/**/site-packages
+
 [report]
+show_missing = true
+ignore_errors = true
+skip_empty = true
+skip_covered = true
+
 # Regexes for lines to exclude from consideration
 exclude_lines =
     # Have to re-enable the standard pragma
@@ -20,5 +30,3 @@ exclude_lines =
     # Don't complain if non-runnable code isn't run:
     if 0:
     if __name__ == .__main__.:
-
-ignore_errors = True

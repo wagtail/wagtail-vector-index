@@ -6,6 +6,7 @@ __pycache__/
 /.coverage
 /htmlcov
 /.tox
+/.venv
 /venv
 /.vscode
 /site
@@ -19,3 +20,4 @@ __pycache__/
 devenv.lock
 devenv.nix
 .env
+.ruff_cache

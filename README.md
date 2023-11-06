@@ -22,7 +22,9 @@ This provides the backbone for features including:
 
 ## Supported Versions
 
-* Wagtail 4.0, 4.1, 4.2, 5.0, 5.1
+* Wagtail 5.2
+* Django 4.2
+* Python 3.11, 3.12
 
 ## Contributing
 
