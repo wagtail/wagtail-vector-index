@@ -2,7 +2,7 @@
 
 Wagtail Vector Index combines integrations with AI 'embedding' APIs and vector databases to provide tools to perform advanced AI-powered querying across content.
 
-To do this;
+To do this:
 
 -   You set up models/pages to be searchable.
 -   Wagtail Vector Index splits the content of those pages into chunks and fetches embeddings from the configured AI backend.

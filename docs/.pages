@@ -1,5 +1,6 @@
 nav:
     - installation.md
-    - getting-started.md
+    - quick-start.md
+    - indexes.md
+    - using-indexes.md
     - backends.md
-    - customising.md
