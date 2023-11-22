@@ -61,7 +61,7 @@ docs = [
 ]
 
 [project.urls]
-Home = "https://github.com/tomusher/wagtail-vector-index"
+Home = "https://github.com/wagtail/wagtail-vector-index"
 
 [tool.flit.module]
 name = "wagtail_vector_index"

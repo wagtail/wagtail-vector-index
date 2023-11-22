@@ -50,7 +50,7 @@ python -m pip install -e .[testing] -U
 
 ```sh
 python -m pip install flit
-flit install
+flit install -s
 ```
 
 ### pre-commit
@@ -76,7 +76,7 @@ Now you can run tests as shown below:
 tox
 ```
 
-or, you can run them for a specific environment `tox -e python3.8-django3.2-wagtail2.15` or specific test
-`tox -e python3.9-django3.2-wagtail2.15-sqlite wagtail-vector-index.tests.test_file.TestClass.test_method`
+or, you can run them for a specific environment `tox -e py3.11-django4.2-wagtail5.2` or specific test
+`tox -e py3.11-django4.2-wagtail5.2 wagtail-vector-index.tests.test_file.TestClass.test_method`
 
 To run the test app interactively, use `tox -e interactive`, visit `http://127.0.0.1:8020/admin/` and log in with `admin`/`changeme`.
