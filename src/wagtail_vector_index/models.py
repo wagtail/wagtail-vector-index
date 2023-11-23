@@ -1,4 +1,5 @@
-from typing import Iterable, List
+from collections.abc import Generator
+from typing import Iterable, List, Self
 
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.contenttypes.models import ContentType
@@ -69,6 +70,17 @@ class Embedding(models.Model):
         content_type = ContentType.objects.get_for_model(instance)
         return Embedding.objects.filter(
             content_type=content_type, object_id=instance.pk
+        )
+
+    def to_document(self) -> Document:
+        return Document(
+            id=str(self.pk),
+            vector=self.vector,
+            metadata={
+                "object_id": str(self.object_id),
+                "content_type_id": str(self.content_type_id),
+                "content": self.content,
+            },
         )
 
 
@@ -171,7 +183,7 @@ class VectorIndexedMixin(models.Model):
         return set(splits) == embedding_content
 
     @transaction.atomic
-    def _to_embeddings(self, ai_backend: EmbeddingAbility) -> List[Embedding]:
+    def generate_embeddings(self, ai_backend: EmbeddingAbility) -> List[Embedding]:
         """Use the AI backend to generate and store embeddings for this object"""
         splits = self._get_split_content()
         embeddings = Embedding.get_for_instance(self)
@@ -195,23 +207,14 @@ class VectorIndexedMixin(models.Model):
 
         return generated_embeddings
 
-    def to_documents(self, *, ai_backend: EmbeddingAbility):
-        embeddings = self._to_embeddings(ai_backend=ai_backend)
-        return [
-            Document(
-                id=str(embedding.pk),
-                vector=embedding.vector,
-                metadata={
-                    "object_id": str(embedding.object_id),
-                    "content_type_id": str(embedding.content_type_id),
-                    "content": embedding.content,
-                },
-            )
-            for embedding in embeddings
-        ]
+    def to_documents(
+        self, *, ai_backend: EmbeddingAbility
+    ) -> Generator[Document, None, None]:
+        for embedding in self.generate_embeddings(ai_backend=ai_backend):
+            yield embedding.to_document()
 
     @classmethod
-    def from_document(cls, document):
+    def from_document(cls, document) -> Self:
         if obj := cls.objects.filter(
             pk=document.metadata["object_id"],
             content_type=document.metadata["content_type_id"],
@@ -221,10 +224,12 @@ class VectorIndexedMixin(models.Model):
             raise IndexedTypeFromDocumentError("No object found for document")
 
     @classmethod
-    def bulk_to_documents(cls, objects, *, ai_backend: EmbeddingAbility):
+    def bulk_to_documents(
+        cls, objects, *, ai_backend: EmbeddingAbility
+    ) -> Generator[Document, None, None]:
         # TODO: Implement a more efficient bulk embedding approach
         for object in objects:
-            yield object.to_documents(ai_backend=ai_backend)
+            yield from object.to_documents(ai_backend=ai_backend)
 
     @classmethod
     def bulk_from_documents(cls, documents):

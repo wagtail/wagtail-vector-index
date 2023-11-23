@@ -1,5 +1,6 @@
+from collections.abc import Generator
 from dataclasses import dataclass
-from typing import Generic, Iterable, List, Type
+from typing import Generic, Iterable, List
 
 from django.conf import settings
 
@@ -25,7 +26,7 @@ class VectorIndex(Generic[VectorIndexableType]):
     def __init__(
         self,
         *,
-        object_type: Type[VectorIndexableType],
+        object_type: type[VectorIndexableType],
         ai_backend_alias="default",
         vector_backend_alias="default",
     ):
@@ -59,14 +60,16 @@ class VectorIndex(Generic[VectorIndexableType]):
 
     def similar(self, object: VectorIndexableType) -> List[VectorIndexableType]:
         """Find similar objects to the given object"""
-        object_documents = object.to_documents(ai_backend=self.ai_backend)
+        object_documents: Generator[Document, None, None] = object.to_documents(
+            ai_backend=self.ai_backend
+        )
         similar_documents = []
         for document in object_documents:
             similar_documents += self.backend_index.similarity_search(document.vector)
 
         return list(self.object_type.bulk_from_documents(similar_documents))
 
-    def search(self, query: str, *, limit: int = 5) -> List[VectorIndexableType]:
+    def search(self, query: str, *, limit: int = 5) -> list[VectorIndexableType]:
         """Perform a search against the index, returning only a list of matching sources"""
         query_embedding = self.ai_backend.embed([query])[0]
         similar_documents = self.backend_index.similarity_search(
@@ -74,7 +77,7 @@ class VectorIndex(Generic[VectorIndexableType]):
         )
         return list(self.object_type.bulk_from_documents(similar_documents))
 
-    def rebuild_index(self):
+    def rebuild_index(self) -> None:
         """Build the index from scratch"""
         self.vector_backend.delete_index(self.__class__.__name__)
         index = self.vector_backend.create_index(

@@ -1,6 +1,6 @@
 import logging
+from collections.abc import Generator, Sequence
 from dataclasses import dataclass
-from typing import List
 
 import numpy as np
 
@@ -17,13 +17,15 @@ class BackendConfig:
 
 
 class NumpyIndex(Index):
-    def upsert(self, *, documents: List[Document]):
+    def upsert(self, *, documents: Sequence[Document]) -> None:
         pass
 
-    def delete(self, *, document_ids: List[str]):
+    def delete(self, *, document_ids: Sequence[str]) -> None:
         pass
 
-    def similarity_search(self, query_vector, *, limit: int = 5):
+    def similarity_search(
+        self, query_vector: Sequence[float], *, limit: int = 5
+    ) -> Generator[SearchResponseDocument, None, None]:
         similarities = []
         vector_index = get_vector_indexes()[self.index_name]
         for document in vector_index.get_documents():
@@ -37,21 +39,18 @@ class NumpyIndex(Index):
         sorted_similarities = sorted(
             similarities, key=lambda pair: pair[0], reverse=True
         )
-        top_similarities = [pair[1] for pair in sorted_similarities][:limit]
-        return [
-            SearchResponseDocument(id=similarity.id, metadata=similarity.metadata)
-            for similarity in top_similarities
-        ]
+        for similarity in [pair[1] for pair in sorted_similarities][:limit]:
+            yield SearchResponseDocument(id=similarity.id, metadata=similarity.metadata)
 
 
 class NumpyBackend(Backend[BackendConfig, NumpyIndex]):
     config_class = BackendConfig
 
-    def get_index(self, index_name) -> NumpyIndex:
+    def get_index(self, index_name: str) -> NumpyIndex:
         return NumpyIndex(index_name)
 
-    def create_index(self, index_name, *, vector_size: int) -> NumpyIndex:
+    def create_index(self, index_name: str, *, vector_size: int) -> NumpyIndex:
         return self.get_index(index_name)
 
-    def delete_index(self, index_name):
+    def delete_index(self, index_name: str) -> None:
         pass

@@ -32,6 +32,7 @@ ALLOWED_HOSTS = ["*"]
 
 INSTALLED_APPS = [
     "wagtail_vector_index",
+    "wagtail_vector_index.backends.pgvector",
     "testapp",
     "wagtail.contrib.search_promotions",
     "wagtail.contrib.forms",
@@ -165,8 +166,20 @@ WAGTAIL_VECTOR_INDEX_AI_BACKENDS = {
     }
 }
 
-WAGTAIL_VECTOR_INDEX_VECTOR_BACKENDS = {
-    "default": {
-        "BACKEND": "wagtail_vector_index.backends.numpy.NumpyBackend",
+_wagtail_vector_default_backend = (
+    os.environ.get("WAGTAIL_VECTOR_INDEX_DEFAULT_BACKEND", "numpy").lower().strip()
+)
+if _wagtail_vector_default_backend == "numpy":
+    WAGTAIL_VECTOR_INDEX_VECTOR_BACKENDS = {
+        "default": {
+            "BACKEND": "wagtail_vector_index.backends.numpy.NumpyBackend",
+        }
     }
-}
+elif _wagtail_vector_default_backend == "pgvector":
+    WAGTAIL_VECTOR_INDEX_VECTOR_BACKENDS = {
+        "default": {
+            "BACKEND": "wagtail_vector_index.backends.numpy.NumpyBackend",
+        }
+    }
+else:
+    raise ValueError(f"Invalid backend: {_wagtail_vector_default_backend}")

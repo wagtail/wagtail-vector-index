@@ -1,3 +1,4 @@
+from collections.abc import Generator
 from dataclasses import dataclass
 from typing import Iterable, List, Protocol, TypeVar
 
@@ -21,7 +22,7 @@ class VectorIndexable(Protocol[VectorIndexableType]):
     """Protocol for objects that can be converted to and from Documents, meaning they can be stored
     in a vector index."""
 
-    def to_documents(self, *, ai_backend: str) -> List[Document]:
+    def to_documents(self, *, ai_backend: str) -> Generator[Document, None, None]:
         """Convert this object to a list of documents that can be passed to a vector storage backend"""
         ...
 

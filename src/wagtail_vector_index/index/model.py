@@ -34,7 +34,7 @@ class ModelVectorIndex(VectorIndex["VectorIndexedMixin"]):
 
         for queryset in querysets:
             for instance in queryset:
-                instance.to_documents(ai_backend=ai_backend)
+                instance.generate_embeddings(ai_backend=ai_backend)
 
         return super().rebuild_index()
 
