@@ -1,4 +1,4 @@
-from collections.abc import Generator, Mapping, Sequence
+from collections.abc import Generator, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -19,7 +19,7 @@ class WeaviateIndex(Index):
         self.index_name = index_name
         self.client = api_client
 
-    def upsert(self, *, documents: Sequence[Document]) -> None:
+    def upsert(self, *, documents: Iterable[Document]) -> None:
         with self.client.batch as batch:
             for document in documents:
                 batch.add_data_object(

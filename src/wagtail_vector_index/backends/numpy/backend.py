@@ -1,5 +1,5 @@
 import logging
-from collections.abc import Generator, Sequence
+from collections.abc import Generator, Iterable, Sequence
 from dataclasses import dataclass
 
 import numpy as np
@@ -16,7 +16,7 @@ class BackendConfig:
 
 
 class NumpyIndex(Index):
-    def upsert(self, *, documents: Sequence[Document]) -> None:
+    def upsert(self, *, documents: Iterable[Document]) -> None:
         pass
 
     def delete(self, *, document_ids: Sequence[str]) -> None:

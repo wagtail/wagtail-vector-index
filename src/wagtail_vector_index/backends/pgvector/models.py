@@ -46,9 +46,9 @@ class PgvectorEmbeddingQuerySet(models.QuerySet["PgvectorEmbedding"]):
         self,
         query_vector: Sequence[float],
         *,
+        asc: bool = True,
         distance_method: DistanceMethod | str,
-        asc=True,
-        fetch_distance=False,
+        fetch_distance: bool,
     ) -> Self:
         qs = self.annotate_with_distance(
             query_vector, distance_method=distance_method, fetch_distance=fetch_distance

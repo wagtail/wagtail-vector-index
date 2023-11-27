@@ -1,4 +1,4 @@
-from collections.abc import Generator, Mapping, Sequence
+from collections.abc import Generator, Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass
 from typing import Any
 
@@ -22,7 +22,7 @@ class QdrantIndex(Index):
         self.index_name = index_name
         self.client = api_client
 
-    def upsert(self, *, documents: Sequence[Document]) -> None:
+    def upsert(self, *, documents: Iterable[Document]) -> None:
         points = [
             qdrant_models.PointStruct(
                 id=document.id,

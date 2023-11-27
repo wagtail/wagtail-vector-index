@@ -1,5 +1,5 @@
 import copy
-from collections.abc import Generator, Mapping, Sequence
+from collections.abc import Generator, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
@@ -38,7 +38,7 @@ class Index:
         # TODO: Consider passing a vector index instance to the constructor.
         return get_vector_indexes()[self.index_name]
 
-    def upsert(self, *, documents: Sequence["Document"]) -> None:
+    def upsert(self, *, documents: Iterable["Document"]) -> None:
         raise NotImplementedError
 
     def clear(self) -> None:
