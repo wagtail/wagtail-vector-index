@@ -37,7 +37,7 @@ numpy = [
     "numpy>=1.26.0",
 ]
 pgvector = [
-    "pgvector>=0.2.3,<1",
+    "pgvector>=0.2.3",
 ]
 qdrant = [
     "qdrant-client>=1.6.0",
