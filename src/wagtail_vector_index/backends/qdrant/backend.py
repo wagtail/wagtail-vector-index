@@ -16,7 +16,9 @@ class BackendConfig:
 
 
 class QdrantIndex(Index):
-    def __init__(self, index_name: str, api_client: QdrantClient) -> None:
+    def __init__(
+        self, index_name: str, api_client: QdrantClient, **kwargs: Any
+    ) -> None:
         self.index_name = index_name
         self.client = api_client
 

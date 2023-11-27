@@ -6,7 +6,6 @@ import numpy as np
 
 from wagtail_vector_index.backends import Backend, Index, SearchResponseDocument
 from wagtail_vector_index.base import Document
-from wagtail_vector_index.index import get_vector_indexes
 
 logger = logging.Logger(__name__)
 
@@ -27,7 +26,7 @@ class NumpyIndex(Index):
         self, query_vector: Sequence[float], *, limit: int = 5
     ) -> Generator[SearchResponseDocument, None, None]:
         similarities = []
-        vector_index = get_vector_indexes()[self.index_name]
+        vector_index = self.get_vector_index()
         for document in vector_index.get_documents():
             cosine_similarity = (
                 np.dot(query_vector, document.vector)

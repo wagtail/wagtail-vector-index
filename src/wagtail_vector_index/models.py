@@ -1,5 +1,5 @@
-from collections.abc import Generator
-from typing import Iterable, List, Self
+from collections.abc import Generator, Iterable, MutableSequence
+from typing import Self
 
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.contenttypes.models import ContentType
@@ -106,7 +106,7 @@ class VectorIndexedMixin(models.Model):
         abstract = True
 
     @classmethod
-    def _get_embedding_fields(cls) -> List["EmbeddingField"]:
+    def _get_embedding_fields(cls) -> list["EmbeddingField"]:
         embedding_fields = {
             (type(field), field.field_name): field for field in cls.embedding_fields
         }
@@ -117,7 +117,7 @@ class VectorIndexedMixin(models.Model):
         *,
         split_length=EMBEDDING_SPLIT_LENGTH_CHARS,
         split_overlap=EMBEDDING_SPLIT_OVERLAP_CHARS,
-    ) -> List[str]:
+    ) -> list[str]:
         """Split the contents of a model instance's `embedding_fields` in to smaller chunks"""
         splittable_content = []
         important_content = []
@@ -172,7 +172,7 @@ class VectorIndexedMixin(models.Model):
         return errors
 
     def _existing_embeddings_match(
-        self, embeddings: Iterable[Embedding], splits: List[str]
+        self, embeddings: Iterable[Embedding], splits: list[str]
     ) -> bool:
         """Determine whether the embeddings passed in match the text content passed in"""
         if not embeddings:
@@ -183,7 +183,7 @@ class VectorIndexedMixin(models.Model):
         return set(splits) == embedding_content
 
     @transaction.atomic
-    def generate_embeddings(self, ai_backend: EmbeddingAbility) -> List[Embedding]:
+    def generate_embeddings(self, ai_backend: EmbeddingAbility) -> list[Embedding]:
         """Use the AI backend to generate and store embeddings for this object"""
         splits = self._get_split_content()
         embeddings = Embedding.get_for_instance(self)
@@ -197,7 +197,7 @@ class VectorIndexedMixin(models.Model):
         embeddings.delete()
 
         embedding_vectors = ai_backend.embed(splits)
-        generated_embeddings: List[Embedding] = []
+        generated_embeddings: MutableSequence[Embedding] = []
         for idx, split in enumerate(splits):
             embedding = Embedding.from_instance(self)
             embedding.vector = embedding_vectors[idx]

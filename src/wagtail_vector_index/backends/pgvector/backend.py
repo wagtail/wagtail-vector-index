@@ -1,16 +1,15 @@
-import enum
 import logging
 from collections.abc import Generator, Iterable, MutableSequence, Sequence
 from dataclasses import dataclass
+from typing import Any
 
-from django.db.models import Func as DatabaseFunc
 from django.db.models import QuerySet
-from pgvector.django import CosineDistance, L2Distance, MaxInnerProduct
 
 from wagtail_vector_index.backends import Backend, Index, SearchResponseDocument
 from wagtail_vector_index.base import Document
 
 from .models import PgvectorEmbedding
+from .types import DistanceMethod
 
 logger = logging.Logger(__name__)
 
@@ -21,21 +20,34 @@ __all__ = [
 ]
 
 
-@dataclass
+@dataclass(kw_only=True)
 class PgvectorBackendConfig:
-    ...
-
-
-class PgvectorIndex(Index):
-    class DistanceMethod(enum.Enum):
-        EUCLIDEAN = "euclidean"
-        COSINE = "cosine"
-        MAX_INNER_PRODUCT = "max_inner_product"
-
     upsert_batch_size: int = 500
     bulk_create_batch_size: int = 500
     bulk_create_ignore_conflicts: bool = True
     distance_method: DistanceMethod = DistanceMethod.COSINE
+
+
+class PgvectorIndex(Index):
+    upsert_batch_size: int
+    bulk_create_batch_size: int
+    bulk_create_ignore_conflicts: bool
+    distance_method: DistanceMethod
+
+    def __init__(
+        self,
+        index_name: str,
+        upsert_batch_size: int,
+        bulk_create_batch_size: int,
+        bulk_create_ignore_conflicts: bool,
+        distance_method: DistanceMethod | str,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(index_name, **kwargs)
+        self.upsert_batch_size = upsert_batch_size
+        self.bulk_create_batch_size = bulk_create_batch_size
+        self.bulk_create_ignore_conflicts = bulk_create_ignore_conflicts
+        self.distance_method = DistanceMethod(distance_method)
 
     def upsert(self, *, documents: Iterable[Document]) -> None:
         counter = 0
@@ -61,8 +73,9 @@ class PgvectorIndex(Index):
         for pgvector_embedding in (
             self._get_queryset()
             .select_related("embedding")
-            .annotate(distance=self._distance_method_cls()("vector", query_vector))
-            .order_by("distance")[:limit]
+            .order_by_distance(
+                query_vector, distance_method=self.distance_method, fetch_distance=False
+            )[:limit]
             .iterator()
         ):
             embedding = pgvector_embedding.embedding
@@ -70,7 +83,7 @@ class PgvectorIndex(Index):
             yield SearchResponseDocument(id=doc.id, metadata=doc.metadata)
 
     def _get_queryset(self) -> QuerySet[PgvectorEmbedding]:
-        return PgvectorEmbedding.objects.index(self.index_name)
+        return PgvectorEmbedding.objects.in_index(self.index_name)
 
     def _bulk_create(self, embeddings: Sequence[PgvectorEmbedding]) -> None:
         PgvectorEmbedding.objects.bulk_create(
@@ -86,22 +99,18 @@ class PgvectorIndex(Index):
             index_name=self.index_name,
         )
 
-    def _distance_method_cls(self) -> type[DatabaseFunc]:
-        match self.distance_method:
-            case self.DistanceMethod.EUCLIDEAN:
-                return L2Distance
-            case self.DistanceMethod.COSINE:
-                return CosineDistance
-            case self.DistanceMethod.MAX_INNER_PRODUCT:
-                return MaxInnerProduct
-        raise ValueError(f"Invalid distance method configured: {self.distance_method}")
-
 
 class PgvectorBackend(Backend[PgvectorBackendConfig, PgvectorIndex]):
     config_class = PgvectorBackendConfig
 
     def get_index(self, index_name: str) -> PgvectorIndex:
-        return PgvectorIndex(index_name)
+        return PgvectorIndex(
+            index_name,
+            upsert_batch_size=self.config.upsert_batch_size,
+            bulk_create_batch_size=self.config.bulk_create_batch_size,
+            bulk_create_ignore_conflicts=self.config.bulk_create_ignore_conflicts,
+            distance_method=self.config.distance_method,
+        )
 
     def create_index(self, index_name: str, *, vector_size: int) -> PgvectorIndex:
         return self.get_index(index_name)

@@ -45,7 +45,6 @@ INSTALLED_APPS = [
     "wagtail.search",
     "wagtail.admin",
     "wagtail.api.v2",
-    "wagtail.contrib.modeladmin",
     "wagtail.contrib.routable_page",
     "wagtail.contrib.styleguide",
     "wagtail.sites",
@@ -169,6 +168,7 @@ WAGTAIL_VECTOR_INDEX_AI_BACKENDS = {
 _wagtail_vector_default_backend = (
     os.environ.get("WAGTAIL_VECTOR_INDEX_DEFAULT_BACKEND", "numpy").lower().strip()
 )
+
 if _wagtail_vector_default_backend == "numpy":
     WAGTAIL_VECTOR_INDEX_VECTOR_BACKENDS = {
         "default": {
@@ -178,7 +178,7 @@ if _wagtail_vector_default_backend == "numpy":
 elif _wagtail_vector_default_backend == "pgvector":
     WAGTAIL_VECTOR_INDEX_VECTOR_BACKENDS = {
         "default": {
-            "BACKEND": "wagtail_vector_index.backends.numpy.NumpyBackend",
+            "BACKEND": "wagtail_vector_index.backends.pgvector.backend.PgvectorBackend",
         }
     }
 else:

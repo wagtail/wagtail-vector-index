@@ -1,7 +1,7 @@
 import copy
 from collections.abc import Generator, Mapping, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from wagtail_vector_index.index.base import VectorIndex
 
 
-ConfigClass = TypeVar("ConfigClass", bound=dict)
+ConfigClass = TypeVar("ConfigClass")
 IndexClass = TypeVar("IndexClass", bound="Index")
 
 
@@ -24,12 +24,12 @@ class InvalidVectorBackendError(ImproperlyConfigured):
 
 @dataclass(frozen=True, eq=True)
 class SearchResponseDocument:
-    id: Union[str, int]
+    id: str | int
     metadata: dict
 
 
 class Index:
-    def __init__(self, index_name: str) -> None:
+    def __init__(self, index_name: str, **kwargs: Any) -> None:
         self.index_name = index_name
 
     def get_vector_index(self) -> "VectorIndex":
@@ -55,8 +55,8 @@ class Index:
 
 class Backend(Generic[ConfigClass, IndexClass]):
     config: ConfigClass
-    config_class: Type[ConfigClass]
-    index_class: Type[IndexClass]
+    config_class: type[ConfigClass]
+    index_class: type[IndexClass]
 
     def __init__(self, config: Mapping[str, Any]) -> None:
         try:

@@ -15,7 +15,7 @@ class BackendConfig:
 
 
 class WeaviateIndex(Index):
-    def __init__(self, index_name: str, api_client: weaviate.Client):
+    def __init__(self, index_name: str, api_client: weaviate.Client, **kwargs: Any):
         self.index_name = index_name
         self.client = api_client
 

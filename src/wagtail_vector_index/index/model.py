@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Iterable, List
+from collections.abc import Iterable, Sequence
 
 from django.apps import apps
 from django.db import models
@@ -7,19 +7,16 @@ from wagtail.query import PageQuerySet
 from .base import Document, VectorIndex
 from .registry import registry
 
-if TYPE_CHECKING:
-    pass
-
 
 class ModelVectorIndex(VectorIndex["VectorIndexedMixin"]):
     """A VectorIndex which indexes the results of querysets of VectorIndexedMixin models"""
 
-    querysets: List[models.QuerySet]
+    querysets: Sequence[models.QuerySet]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def _get_querysets(self) -> List[models.QuerySet]:
+    def _get_querysets(self) -> Sequence[models.QuerySet]:
         return self.querysets
 
     def rebuild_index(self):
@@ -59,9 +56,9 @@ class PageVectorIndex(ModelVectorIndex):
     """A model vector indexed for use with Wagtail pages that automatically
     restricts indexed models to live pages."""
 
-    querysets: List[PageQuerySet]
+    querysets: Sequence[PageQuerySet]
 
-    def _get_querysets(self) -> List[PageQuerySet]:
+    def _get_querysets(self) -> list[PageQuerySet]:
         qs_list = super()._get_querysets()
         return [qs.live() for qs in qs_list]
 
