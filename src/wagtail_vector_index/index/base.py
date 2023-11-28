@@ -73,7 +73,7 @@ class VectorIndex(Generic[VectorIndexableType]):
         return QueryResponse(response=response.text(), sources=sources)
 
     def similar(
-        self, object: VectorIndexableType, *, include_self: bool = False
+        self, object: VectorIndexableType, *, include_self: bool = False, limit: int = 5
     ) -> list[VectorIndexableType]:
         """Find similar objects to the given object"""
         object_documents: Generator[Document, None, None] = object.to_documents(
@@ -81,7 +81,9 @@ class VectorIndex(Generic[VectorIndexableType]):
         )
         similar_documents = []
         for document in object_documents:
-            similar_documents += self.backend_index.similarity_search(document.vector)
+            similar_documents += self.backend_index.similarity_search(
+                document.vector, limit=limit
+            )
 
         # Eliminate duplicates of the same objects.
         return_list: MutableSequence[VectorIndexableType] = []
@@ -92,7 +94,6 @@ class VectorIndex(Generic[VectorIndexableType]):
             if return_obj in return_list:
                 continue
             return_list.append(return_obj)
-
         return return_list
 
     def search(self, query: str, *, limit: int = 5) -> list[VectorIndexableType]:
