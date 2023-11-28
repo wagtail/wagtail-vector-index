@@ -51,3 +51,10 @@ class VectorIndexable(Protocol[VectorIndexableType]):
     ) -> Iterable[VectorIndexableType]:
         """Convert a list of documents back to the objects they represent"""
         ...
+
+    def __eq__(self, other: object) -> bool:
+        """
+        Equality check has to be implemented for the vector index to work
+        properly.
+        """
+        ...
