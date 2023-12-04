@@ -6,8 +6,6 @@ from django.contrib.contenttypes.models import ContentType
 from django.core import checks
 from django.core.exceptions import FieldDoesNotExist
 from django.db import models, transaction
-from every_ai import EmbeddingAbility
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 from wagtail.models import Page
 from wagtail.search.index import BaseField
 
@@ -18,8 +16,7 @@ from wagtail_vector_index.index.model import (
     PageVectorIndex,
 )
 
-EMBEDDING_SPLIT_LENGTH_CHARS = 800
-EMBEDDING_SPLIT_OVERLAP_CHARS = 100
+from .wagtail_ai_utils.backends.base import BaseEmbeddingBackend
 
 
 class Embedding(models.Model):
@@ -28,6 +25,7 @@ class Embedding(models.Model):
     content_type = models.ForeignKey(
         ContentType, on_delete=models.CASCADE, related_name="+"
     )
+    content_type_id: int
     base_content_type = models.ForeignKey(
         ContentType, on_delete=models.CASCADE, related_name="+"
     )
@@ -115,8 +113,7 @@ class VectorIndexedMixin(models.Model):
     def _get_split_content(
         self,
         *,
-        split_length=EMBEDDING_SPLIT_LENGTH_CHARS,
-        split_overlap=EMBEDDING_SPLIT_OVERLAP_CHARS,
+        embedding_backend: BaseEmbeddingBackend,
     ) -> list[str]:
         """Split the contents of a model instance's `embedding_fields` in to smaller chunks"""
         splittable_content = []
@@ -125,7 +122,12 @@ class VectorIndexedMixin(models.Model):
 
         for field in embedding_fields:
             value = field.get_value(self)
-            final_value = value if isinstance(value, str) else "\n".join(value)
+            if value is None:
+                continue
+            if isinstance(value, str):
+                final_value = value
+            else:
+                final_value: str = "\n".join((str(v) for v in value))
             if field.important:
                 important_content.append(final_value)
             else:
@@ -133,10 +135,7 @@ class VectorIndexedMixin(models.Model):
 
         text = "\n".join(splittable_content)
         important_text = "\n".join(important_content)
-        splitter = RecursiveCharacterTextSplitter(
-            chunk_size=split_length,
-            chunk_overlap=split_overlap,
-        )
+        splitter = embedding_backend.get_text_splitter()
         return [f"{important_text}\n{text}" for text in splitter.split_text(text)]
 
     @classmethod
@@ -183,9 +182,11 @@ class VectorIndexedMixin(models.Model):
         return set(splits) == embedding_content
 
     @transaction.atomic
-    def generate_embeddings(self, ai_backend: EmbeddingAbility) -> list[Embedding]:
+    def generate_embeddings(
+        self, *, embedding_backend: BaseEmbeddingBackend
+    ) -> list[Embedding]:
         """Use the AI backend to generate and store embeddings for this object"""
-        splits = self._get_split_content()
+        splits = self._get_split_content(embedding_backend=embedding_backend)
         embeddings = Embedding.get_for_instance(self)
 
         # If the existing embeddings all match on content, we return them
@@ -196,11 +197,12 @@ class VectorIndexedMixin(models.Model):
         # Otherwise we delete all the existing embeddings and get new ones
         embeddings.delete()
 
-        embedding_vectors = ai_backend.embed(splits)
+        embedding_vectors = embedding_backend.embed(splits)
         generated_embeddings: MutableSequence[Embedding] = []
-        for idx, split in enumerate(splits):
+        for idx, returned_embedding in enumerate(embedding_vectors):
+            split = splits[idx]
             embedding = Embedding.from_instance(self)
-            embedding.vector = embedding_vectors[idx]
+            embedding.vector = returned_embedding
             embedding.content = split
             embedding.save()
             generated_embeddings.append(embedding)
@@ -208,9 +210,9 @@ class VectorIndexedMixin(models.Model):
         return generated_embeddings
 
     def to_documents(
-        self, *, ai_backend: EmbeddingAbility
+        self, *, embedding_backend: BaseEmbeddingBackend
     ) -> Generator[Document, None, None]:
-        for embedding in self.generate_embeddings(ai_backend=ai_backend):
+        for embedding in self.generate_embeddings(embedding_backend=embedding_backend):
             yield embedding.to_document()
 
     @classmethod
@@ -225,11 +227,11 @@ class VectorIndexedMixin(models.Model):
 
     @classmethod
     def bulk_to_documents(
-        cls, objects, *, ai_backend: EmbeddingAbility
+        cls, objects, *, embedding_backend: BaseEmbeddingBackend
     ) -> Generator[Document, None, None]:
         # TODO: Implement a more efficient bulk embedding approach
         for object in objects:
-            yield from object.to_documents(ai_backend=ai_backend)
+            yield from object.to_documents(embedding_backend=embedding_backend)
 
     @classmethod
     def bulk_from_documents(cls, documents):

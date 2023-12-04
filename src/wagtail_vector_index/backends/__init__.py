@@ -7,8 +7,6 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.utils.module_loading import import_string
 
-from wagtail_vector_index.ai import get_ai_backend
-
 if TYPE_CHECKING:
     from wagtail_vector_index.base import Document
     from wagtail_vector_index.index.base import VectorIndex
@@ -61,8 +59,6 @@ class Backend(Generic[ConfigClass, IndexClass]):
     def __init__(self, config: Mapping[str, Any]) -> None:
         try:
             config = dict(copy.deepcopy(config))
-            ai_backend_alias = config.pop("AI_BACKEND", "default")
-            self.ai_backend = get_ai_backend(ai_backend_alias)
             self.config = self.config_class(**config)
         except TypeError as e:
             raise ImproperlyConfigured(

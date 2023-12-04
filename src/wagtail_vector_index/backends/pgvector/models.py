@@ -58,20 +58,25 @@ class PgvectorEmbeddingQuerySet(models.QuerySet["PgvectorEmbedding"]):
         return qs
 
 
+class PgvectorEmbeddingManager(models.Manager.from_queryset(PgvectorEmbeddingQuerySet)):
+    pass
+
+
 class PgvectorEmbedding(models.Model):
     embedding = models.ForeignKey(
         "wagtail_vector_index.Embedding", on_delete=models.CASCADE, related_name="+"
     )
     vector = VectorField()
+    embedding_output_dimensions = models.PositiveIntegerField(db_index=True)
     index_name = models.TextField()
 
-    objects = PgvectorEmbeddingQuerySet.as_manager()
+    objects = PgvectorEmbeddingManager()
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["embedding", "index_name"],
-                name="unique_pgvector_embedding_per_index",
+                fields=["embedding", "index_name", "embedding_output_dimensions"],
+                name="unique_pgvector_embedding_per_index_and_dimensions",
             )
         ]
         indexes = [

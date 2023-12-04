@@ -1,11 +1,17 @@
 from collections.abc import Iterable, Sequence
+from typing import TYPE_CHECKING, cast
 
 from django.apps import apps
 from django.db import models
 from wagtail.query import PageQuerySet
 
+from wagtail_vector_index.ai import get_embedding_backend
+
 from .base import Document, VectorIndex
 from .registry import registry
+
+if TYPE_CHECKING:
+    pass
 
 
 class ModelVectorIndex(VectorIndex["VectorIndexedMixin"]):
@@ -25,13 +31,12 @@ class ModelVectorIndex(VectorIndex["VectorIndexedMixin"]):
         querysets = self._get_querysets()
 
         # TODO Rework - shouldn't need to pull in an AI backend here
-        from wagtail_vector_index.ai import get_ai_backend
 
-        ai_backend = get_ai_backend()
+        embedding_backend = get_embedding_backend("default")
 
         for queryset in querysets:
             for instance in queryset:
-                instance.generate_embeddings(ai_backend=ai_backend)
+                instance.generate_embeddings(embedding_backend=embedding_backend)
 
         return super().rebuild_index()
 
@@ -60,7 +65,10 @@ class PageVectorIndex(ModelVectorIndex):
 
     def _get_querysets(self) -> list[PageQuerySet]:
         qs_list = super()._get_querysets()
-        return [qs.live() for qs in qs_list]
+
+        # Technically a manager instance, not a queryset, but we want to use the custom
+        # methods.
+        return [cast(PageQuerySet, qs).live() for qs in qs_list]
 
 
 def register_indexed_models():

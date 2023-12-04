@@ -2,6 +2,7 @@ import pytest
 from factories import ExamplePageFactory
 from faker import Faker
 from testapp.models import ExamplePage
+from wagtail_vector_index.ai import get_embedding_backend
 from wagtail_vector_index.index import (
     VectorIndex,
     get_vector_indexes,
@@ -60,33 +61,15 @@ def test_checking_search_fields_errors_with_invalid_field(patch_embedding_fields
 
 
 @pytest.mark.django_db
-def test_get_split_content_doesnt_split_when_smaller_than_target_length():
-    content_length = 200
-    split_length = 205
-    body = fake.text(max_nb_chars=content_length)[:content_length]
-    instance = ExamplePageFactory.create(body=body)
-    splits = instance._get_split_content(split_length=split_length, split_overlap=0)
-    assert len(splits) == 1
-
-
-@pytest.mark.django_db
-def test_get_split_content_splits_longer_content():
-    content_length = 340
-    split_length = 200
-    body = fake.text(max_nb_chars=content_length)[:content_length]
-    instance = ExamplePageFactory.create(title="a", body=body)
-    splits = instance._get_split_content(split_length=split_length, split_overlap=0)
-    assert len(splits) == 2
-
-
-@pytest.mark.django_db
 def test_get_split_content_adds_important_field_to_each_split(patch_embedding_fields):
     with patch_embedding_fields(
         ExamplePage, [EmbeddingField("title", important=True), EmbeddingField("body")]
     ):
         body = fake.text(max_nb_chars=200)
         instance = ExamplePageFactory.create(title="Important Title", body=body)
-        splits = instance._get_split_content(split_length=50, split_overlap=0)
+        splits = instance._get_split_content(
+            embedding_backend=get_embedding_backend("default")
+        )
         assert all(split.startswith(instance.title) for split in splits)
 
 

@@ -1,23 +1,14 @@
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 
 import pytest
-from every_ai import AIBackend, registry
-
-
-@registry.register("mock")
-class MockAIBackend(AIBackend):
-    def __init__(self, config):
-        pass
-
-    def chat(self, prompt: str) -> str:
-        return "AI! Don't talk to me about AI!"
-
-    def embed(self, inputs):
-        return [[0.1, 0.2, 0.3] for _ in range(len(inputs))]
-
-    @property
-    def embedding_output_dimensions(self):
-        return 3
+from wagtail_vector_index.wagtail_ai_utils.backends.base import (
+    BaseChatBackend,
+    BaseChatConfig,
+    BaseEmbeddingBackend,
+    BaseEmbeddingConfig,
+)
+from wagtail_vector_index.wagtail_ai_utils.types import AIResponse
 
 
 @pytest.fixture
@@ -32,10 +23,53 @@ def patch_embedding_fields():
     return _patch_embedding_fields
 
 
+class MockResponse(AIResponse):
+    def __iter__(self) -> Iterator[str]:
+        return iter("AI! Don't talk to me about AI!".split())
+
+    def text(self):
+        return "AI! Don't talk to me about AI!"
+
+
+class ChatMockBackend(BaseChatBackend):
+    config_cls = BaseChatConfig
+
+    def chat(self, user_messages: Sequence[str]) -> AIResponse:
+        return MockResponse()
+
+
+class EmbeddingMockBackend(BaseEmbeddingBackend):
+    config_cls = BaseEmbeddingConfig
+
+    def embed(self, inputs):
+        values = [
+            i * self.embedding_output_dimensions
+            for i in range(self.embedding_output_dimensions)
+        ]
+        for _ in inputs:
+            yield values
+
+
 @pytest.fixture(autouse=True)
 def use_mock_ai_backend(settings):
-    settings.WAGTAIL_VECTOR_INDEX_AI_BACKENDS = {
-        "default": {
-            "BACKEND": "mock",
-        }
+    settings.WAGTAIL_VECTOR_INDEX = {
+        "EMBEDDING_BACKENDS": {
+            "default": {
+                "CLASS": "conftest.EmbeddingMockBackend",
+                "CONFIG": {
+                    "MODEL_ID": "mock-chat",
+                    "TOKEN_LIMIT": 1024,
+                    "EMBEDDING_OUTPUT_DIMENSIONS": 6,
+                },
+            }
+        },
+        "CHAT_BACKENDS": {
+            "default": {
+                "CLASS": "conftest.ChatMockBackend",
+                "CONFIG": {
+                    "MODEL_ID": "mock-embedding",
+                    "TOKEN_LIMIT": 1024,
+                },
+            }
+        },
     }
