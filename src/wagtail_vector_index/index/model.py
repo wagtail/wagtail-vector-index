@@ -5,13 +5,11 @@ from django.apps import apps
 from django.db import models
 from wagtail.query import PageQuerySet
 
-from wagtail_vector_index.ai import get_embedding_backend
-
 from .base import Document, VectorIndex
 from .registry import registry
 
 if TYPE_CHECKING:
-    pass
+    from wagtail_vector_index.models import VectorIndexedMixin  # noqa: F401
 
 
 class ModelVectorIndex(VectorIndex["VectorIndexedMixin"]):
@@ -30,13 +28,9 @@ class ModelVectorIndex(VectorIndex["VectorIndexedMixin"]):
         this index"""
         querysets = self._get_querysets()
 
-        # TODO Rework - shouldn't need to pull in an AI backend here
-
-        embedding_backend = get_embedding_backend("default")
-
         for queryset in querysets:
             for instance in queryset:
-                instance.generate_embeddings(embedding_backend=embedding_backend)
+                instance.generate_embeddings(embedding_backend=self.embedding_backend)
 
         return super().rebuild_index()
 
@@ -73,7 +67,7 @@ class PageVectorIndex(ModelVectorIndex):
 
 def register_indexed_models():
     """Discover and register all models that are a subclass of VectorIndexedMixin"""
-    from wagtail_vector_index.models import VectorIndexedMixin
+    from wagtail_vector_index.models import VectorIndexedMixin  # noqa: F811
 
     indexed_models = [
         model

@@ -88,5 +88,5 @@ DJANGO_SETTINGS_MODULE = "testapp.settings"
 pythonpath = ["./", "./tests"]
 
 [tool.ruff]
-select = ["F", "E", "C90", "I", "B", "DJ", "RUF", "TRY", "C4"]
+select = ["F", "E", "C90", "I", "B", "DJ", "RUF", "TRY", "C4", "TCH005", "TCH004"]
 ignore = ["TRY003", "E501", "RUF012"]
