@@ -50,7 +50,7 @@ python -m pip install -e .[testing] -U
 
 ```sh
 python -m pip install flit
-flit install -s
+python -m flit install -s
 ```
 
 ### pre-commit

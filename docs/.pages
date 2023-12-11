@@ -3,4 +3,4 @@ nav:
     - quick-start.md
     - indexes.md
     - using-indexes.md
-    - backends.md
+    - vector-backends.md
