@@ -3,12 +3,12 @@ from collections.abc import Mapping
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
-from .wagtail_ai_utils.backends import BackendSettingsDict
-from .wagtail_ai_utils.backends import get_chat_backend as get_chat_backend_instance
-from .wagtail_ai_utils.backends import (
+from .ai_utils.backends import BackendSettingsDict
+from .ai_utils.backends import get_chat_backend as get_chat_backend_instance
+from .ai_utils.backends import (
     get_embedding_backend as get_embedding_backend_instance,
 )
-from .wagtail_ai_utils.backends.base import BaseChatBackend, BaseEmbeddingBackend
+from .ai_utils.backends.base import BaseChatBackend, BaseEmbeddingBackend
 
 
 def get_chat_backends_settings() -> Mapping[str, BackendSettingsDict]:
@@ -20,7 +20,7 @@ def get_chat_backends_settings() -> Mapping[str, BackendSettingsDict]:
         ) from e
     return {
         "default": {
-            "CLASS": "wagtail_ai_utils.ai.llm.LLMChatBackend",
+            "CLASS": "ai_utils.ai.llm.LLMChatBackend",
             "CONFIG": {
                 "MODEL_ID": "gpt-3.5-turbo",
             },
@@ -37,7 +37,7 @@ def get_embedding_backends_settings() -> Mapping[str, BackendSettingsDict]:
         ) from e
     return {
         "default": {
-            "CLASS": "wagtail_ai_utils.ai.llm.LLMEmbeddingBackend",
+            "CLASS": "ai_utils.ai.llm.LLMEmbeddingBackend",
             "CONFIG": {
                 "MODEL_ID": "text-embedding-ada-002",
             },

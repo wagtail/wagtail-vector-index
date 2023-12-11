@@ -165,7 +165,7 @@ if _wagtail_ai_default_backend == "chatgpt":
     WAGTAIL_VECTOR_INDEX = {
         "CHAT_BACKENDS": {
             "default": {
-                "CLASS": "wagtail_vector_index.wagtail_ai_utils.backends.llm.LLMChatBackend",
+                "CLASS": "wagtail_vector_index.ai_utils.backends.llm.LLMChatBackend",
                 "CONFIG": {
                     "MODEL_ID": "gpt-3.5-turbo",
                 },
@@ -173,7 +173,7 @@ if _wagtail_ai_default_backend == "chatgpt":
         },
         "EMBEDDING_BACKENDS": {
             "default": {
-                "CLASS": "wagtail_vector_index.wagtail_ai_utils.backends.llm.LLMEmbeddingBackend",
+                "CLASS": "wagtail_vector_index.ai_utils.backends.llm.LLMEmbeddingBackend",
                 "CONFIG": {
                     "MODEL_ID": "ada-002",
                 },
@@ -184,7 +184,7 @@ elif _wagtail_ai_default_backend == "echo":
     WAGTAIL_VECTOR_INDEX = {
         "CHAT_BACKENDS": {
             "default": {
-                "CLASS": "wagtail_vector_index.wagtail_ai_utils.backends.echo.EchoChatBackend",
+                "CLASS": "wagtail_vector_index.ai_utils.backends.echo.EchoChatBackend",
                 "CONFIG": {
                     "MODEL_ID": "echo",
                     "MAX_WORD_SLEEP_SECONDS": 1,
@@ -194,7 +194,7 @@ elif _wagtail_ai_default_backend == "echo":
         },
         "EMBEDDING_BACKENDS": {
             "default": {
-                "CLASS": "wagtail_vector_index.wagtail_ai_utils.backends.echo.EchoEmbeddingBackend",
+                "CLASS": "wagtail_vector_index.ai_utils.backends.echo.EchoEmbeddingBackend",
                 "CONFIG": {
                     "MODEL_ID": "echo",
                     "MAX_WORD_SLEEP_SECONDS": 1,

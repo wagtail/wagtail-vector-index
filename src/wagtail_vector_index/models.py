@@ -16,7 +16,7 @@ from wagtail_vector_index.index.model import (
     PageVectorIndex,
 )
 
-from .wagtail_ai_utils.backends.base import BaseEmbeddingBackend
+from .ai_utils.backends.base import BaseEmbeddingBackend
 
 
 class Embedding(models.Model):

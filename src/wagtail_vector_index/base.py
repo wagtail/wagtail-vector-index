@@ -2,7 +2,7 @@ from collections.abc import Generator
 from dataclasses import dataclass
 from typing import Iterable, List, Protocol, TypeVar
 
-from .wagtail_ai_utils.backends.base import BaseEmbeddingBackend
+from .ai_utils.backends.base import BaseEmbeddingBackend
 
 VectorIndexableType = TypeVar("VectorIndexableType", bound="VectorIndexable")
 

@@ -2,13 +2,13 @@ from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 
 import pytest
-from wagtail_vector_index.wagtail_ai_utils.backends.base import (
+from wagtail_vector_index.ai_utils.backends.base import (
     BaseChatBackend,
     BaseChatConfig,
     BaseEmbeddingBackend,
     BaseEmbeddingConfig,
 )
-from wagtail_vector_index.wagtail_ai_utils.types import AIResponse
+from wagtail_vector_index.ai_utils.types import AIResponse
 
 
 @pytest.fixture

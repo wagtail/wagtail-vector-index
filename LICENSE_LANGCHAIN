@@ -1,5 +1,5 @@
 This is the license for the Langchain text splitter that is vendored
-in "src/wagtail_vector_index/wagtail_ai_utils/text_splitting/langchain.py".
+in "src/wagtail_vector_index/ai_utils/text_splitting/langchain.py".
 
 MIT License
 

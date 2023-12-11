@@ -7,8 +7,8 @@ from django.conf import settings
 from wagtail_vector_index.ai import get_chat_backend, get_embedding_backend
 from wagtail_vector_index.backends import get_vector_backend
 
+from ..ai_utils.backends.base import BaseChatBackend, BaseEmbeddingBackend
 from ..base import Document, VectorIndexableType
-from ..wagtail_ai_utils.backends.base import BaseChatBackend, BaseEmbeddingBackend
 
 
 @dataclass
