@@ -79,4 +79,6 @@ tox
 or, you can run them for a specific environment `tox -e py3.11-django4.2-wagtail5.2` or specific test
 `tox -e py3.11-django4.2-wagtail5.2 -- tests.test_file.TestClass.test_method`
 
+Sometimes tox contains cached dependencies, so if you want to run tests with the latest dependencies, you can use `tox -r` or run `rm -rf .tox` to delete the whole tox environment.
+
 To run the test app interactively, use `tox -e interactive`, visit `http://127.0.0.1:8020/admin/` and log in with `admin`/`changeme`.

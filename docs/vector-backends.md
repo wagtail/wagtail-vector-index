@@ -33,8 +33,8 @@ WAGTAIL_VECTOR_INDEX_VECTOR_BACKENDS = {
 ```
 
 It does not need any additional processes to work, but it does require the
-`numpy` package to be installed. To use this backend, you should install Wagtail
-Vector Index with an optional dependency:
+`numpy` package to be installed. We recommend you do that by installing
+Wagtail Vector Index with an optional dependency:
 
 ```sh
 python -m pip install wagtail-vector-index[numpy]
@@ -53,13 +53,12 @@ This backend makes use of the [pgvector](https://github.com/pgvector/pgvector) e
 in the Postgres database. This may be a good option if you already use a Postgres database
 and do not want to add more services to your infrastructure.
 
-```python
-WAGTAIL_VECTOR_INDEX_VECTOR_BACKENDS = {
-    "default": {
-        "BACKEND": "wagtail_vector_index.backends.pgvector.PgvectorBackend",
-    }
-}
-```
+!!! warning
+
+    This backend won't work with non-PostgreSQL databases but you might see
+    no errors (it will fail silently). It's advised to use Postgres across
+    all your environments (including local development environment) if you
+    use the pgvector backend.
 
 You must ensure your Postgres instance supports the
 [pgvector](https://github.com/pgvector/pgvector) extension. To use this
@@ -69,10 +68,49 @@ backend, you should install Wagtail Vector Index with an optional dependency:
 python -m pip install wagtail-vector-index[pgvector]
 ```
 
+To configure the vector index, use the following settings in your Django
+project settings:
+
+```python
+WAGTAIL_VECTOR_INDEX_VECTOR_BACKENDS = {
+    "default": {
+        "BACKEND": "wagtail_vector_index.backends.pgvector.PgvectorBackend",
+    }
+}
+```
+
+You also need to install another Django application because the pgvector backend
+contains its own database model.
+
+```python
+INSTALLED_APPS = [
+    # ...
+    "wagtail_vector_index",
+    "wagtail_vector_index.backends.pgvector",
+    # ...
+]
+```
+
+And you need to run the migrations:
+
+```sh
+./manage.py migrate
+```
+
 ## Qdrant Backend
 
 The [Qdrant](https://qdrant.tech/) backend supports both the cloud and self-hosted
 versions of the Qdrant vector database.
+
+To use this backend, you should install Wagtail Vector Index with an optional
+dependency:
+
+```sh
+python -m pip install wagtail-vector-index[qdrant]
+```
+
+You need to configure the vector index backend in your Django project
+settings file:
 
 ```python
 WAGTAIL_VECTOR_INDEX_VECTOR_BACKENDS = {
@@ -83,17 +121,21 @@ WAGTAIL_VECTOR_INDEX_VECTOR_BACKENDS = {
     }
 }
 ```
-To use this backend, you should install Wagtail Vector Index with an optional
-dependency:
-
-```sh
-python -m pip install wagtail-vector-index[qdrant]
-```
 
 ## Weaviate Backend
 
 The [Weaviate](https://weaviate.io/) backend supports both the cloud and
 self-hosted versions of the Weaviate vector database.
+
+To use this backend, you should install Wagtail Vector Index with an optional
+dependency:
+
+```sh
+python -m pip install wagtail-vector-index[weaviate]
+```
+
+You need to configure the vector index backend in your Django project
+settings file:
 
 ```python
 WAGTAIL_VECTOR_INDEX_VECTOR_BACKENDS = {
@@ -103,11 +145,4 @@ WAGTAIL_VECTOR_INDEX_VECTOR_BACKENDS = {
         "API_KEY": "your_weaviate_api_key",
     }
 }
-```
-
-To use this backend, you should install Wagtail Vector Index with an optional
-dependency:
-
-```sh
-python -m pip install wagtail-vector-index[weaviate]
 ```

@@ -26,6 +26,16 @@ settings file.
        # ...
    ]
    ```
+    - If you are using the pgvector backend, you also need to add the specific
+      pgvector app:
+      ```python
+      INSTALLED_APPS = [
+          # ...
+          "wagtail_vector_index",
+          "wagtail_vector_index.backends.pgvector",
+          # ...
+      ]
+      ```
 3. Add an AI backend configuration to your Django project settings file. Wagtail
    Vector Index ships with a backend for the
    [llm package](https://llm.datasette.io/), so you can configure it for OpenAI
@@ -52,3 +62,7 @@ settings file.
     ```
    * You can supply your OpenAI key in the `OPENAI_API_KEY` environment variable
      which is read directly by the openai library (installed by the llm package).
+4. Run database migrations.
+   ```sh
+   ./manage.py migrate
+   ```
