@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PyPI version](https://badge.fury.io/py/wagtail-vector-index.svg)](https://badge.fury.io/py/wagtail-vector-index)
-[![ai CI](https://github.com/tomusher/wagtail-vector-index/actions/workflows/test.yml/badge.svg)](https://github.com/tomusher/wagtail-vector-index/actions/workflows/test.yml)
+[![ai CI](https://github.com/wagtail/wagtail-vector-index/actions/workflows/test.yml/badge.svg)](https://github.com/wagtail/wagtail-vector-index/actions/workflows/test.yml)
 
 Wagtail Vector Index provides a way to turn Django models, Wagtail pages, and anything else in to embeddings which are stored in a one of multiple vector database backends.
 
@@ -14,11 +14,11 @@ This provides the backbone for features including:
 
 ## Links
 
-- [Documentation](https://github.com/tomusher/wagtail-vector-index/blob/main/README.md)
-- [Changelog](https://github.com/tomusher/wagtail-vector-index/blob/main/CHANGELOG.md)
-- [Contributing](https://github.com/tomusher/wagtail-vector-index/blob/main/CHANGELOG.md)
-- [Discussions](https://github.com/tomusher/wagtail-vector-index/discussions)
-- [Security](https://github.com/tomusher/wagtail-vector-index/security)
+- [Documentation](https://github.com/wagtail/wagtail-vector-index/blob/main/README.md)
+- [Changelog](https://github.com/wagtail/wagtail-vector-index/blob/main/CHANGELOG.md)
+- [Contributing](https://github.com/wagtail/wagtail-vector-index/blob/main/CHANGELOG.md)
+- [Discussions](https://github.com/wagtail/wagtail-vector-index/discussions)
+- [Security](https://github.com/wagtail/wagtail-vector-index/security)
 
 ## Supported Versions
 
@@ -33,7 +33,7 @@ This provides the backbone for features including:
 To make changes to this project, first clone this repository:
 
 ```sh
-git clone https://github.com/tomusher/wagtail-vector-index.git
+git clone https://github.com/wagtail/wagtail-vector-index.git
 cd wagtail-vector-index
 ```
 
@@ -50,7 +50,7 @@ python -m pip install -e .[testing] -U
 
 ```sh
 python -m pip install flit
-flit install
+flit install -s
 ```
 
 ### pre-commit
@@ -76,7 +76,7 @@ Now you can run tests as shown below:
 tox
 ```
 
-or, you can run them for a specific environment `tox -e python3.8-django3.2-wagtail2.15` or specific test
-`tox -e python3.9-django3.2-wagtail2.15-sqlite wagtail-vector-index.tests.test_file.TestClass.test_method`
+or, you can run them for a specific environment `tox -e py3.11-django4.2-wagtail5.2` or specific test
+`tox -e py3.11-django4.2-wagtail5.2 -- tests.test_file.TestClass.test_method`
 
 To run the test app interactively, use `tox -e interactive`, visit `http://127.0.0.1:8020/admin/` and log in with `admin`/`changeme`.

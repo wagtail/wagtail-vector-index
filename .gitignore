@@ -4,6 +4,7 @@ __pycache__/
 /dist
 /wagtail_vector_index.egg-info
 /.coverage
+.coverage.*
 /htmlcov
 /.tox
 /.venv
