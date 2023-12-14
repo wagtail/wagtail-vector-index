@@ -79,25 +79,6 @@ class EchoChatBackend(BaseChatBackend[EchoChatConfig]):
 
         return EchoResponse(response_iterator())
 
-    def prompt_with_context(
-        self, *, pre_prompt: str, context: str, post_prompt: str | None = None
-    ) -> EchoResponse:
-        def response_iterator() -> Generator[str, None, None]:
-            response = ["this", "is", "an", "echo", "backend:"]
-            response += context.split()
-            for word in response:
-                if (
-                    self.config.max_word_sleep_seconds is not None
-                    and self.config.max_word_sleep_seconds > 0
-                ):
-                    time.sleep(
-                        random.random()
-                        * random.randint(0, self.config.max_word_sleep_seconds)
-                    )
-                yield word
-
-        return EchoResponse(response_iterator())
-
 
 class EchoEmbeddingBackend(BaseEmbeddingBackend[BaseEmbeddingConfig]):
     config_cls = BaseEmbeddingConfig

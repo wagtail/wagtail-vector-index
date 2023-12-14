@@ -82,16 +82,6 @@ class LLMChatBackend(BaseChatBackend[LLMChatBackendConfig]):
         full_prompt = os.linesep.join(user_messages)
         return model.prompt(full_prompt, **self._get_prompt_kwargs())
 
-    def prompt_with_context(
-        self, *, pre_prompt: str, context: str, post_prompt: str | None = None
-    ) -> AIResponse:
-        parts = [pre_prompt, context]
-
-        if post_prompt is not None:
-            parts.append(post_prompt)
-
-        return self.chat(user_messages=parts)
-
     def _get_prompt_kwargs(self, **prompt_kwargs: Any) -> Mapping[str, Any]:
         prompt_kwargs = {}
         if self.config.prompt_kwargs is not None:

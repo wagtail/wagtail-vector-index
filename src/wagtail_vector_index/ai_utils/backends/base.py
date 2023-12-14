@@ -201,14 +201,6 @@ class BaseChatBackend(BaseBackend[ChatBackendConfig]):
     def chat(self, *, user_messages: Sequence[str]) -> AIResponse:
         ...
 
-    def prompt_with_context(
-        self, *, pre_prompt: str, context: str, post_prompt: str | None = None
-    ) -> AIResponse:
-        """
-        Given a prompt and a context, return a response.
-        """
-        ...
-
 
 class BaseEmbeddingBackend(BaseBackend[EmbeddingBackendConfig]):
     config_cls: ClassVar[type[BaseEmbeddingConfig]]
