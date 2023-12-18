@@ -64,8 +64,9 @@ class EchoChatBackend(BaseChatBackend[EchoChatConfig]):
 
     def chat(self, *, user_messages: Sequence[str]) -> AIResponse:
         def response_iterator() -> Generator[str, None, None]:
-            response = ["this", "is", "an", "echo", "backend:"]
-            response.extend(user_messages)
+            response = ["This", "is", "an", "echo", "backend:"]
+            for m in user_messages:
+                response.extend(m.split())
             for word in response:
                 if (
                     self.config.max_word_sleep_seconds is not None

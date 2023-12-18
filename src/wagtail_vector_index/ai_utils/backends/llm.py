@@ -100,7 +100,7 @@ class LLMEmbeddingBackend(BaseEmbeddingBackend[LLMEmbeddingBackendConfig]):
     config: LLMEmbeddingBackendConfig
     config_cls = LLMEmbeddingBackendConfig
 
-    def _get_llm_embeddings_model(self) -> llm.EmbeddingModel:
+    def _get_llm_embedding_model(self) -> llm.EmbeddingModel:
         model = llm.get_embedding_model(self.config.model_id)
         if self.config.init_kwargs is not None:
             for config_key, config_val in self.config.init_kwargs.items():
@@ -108,5 +108,5 @@ class LLMEmbeddingBackend(BaseEmbeddingBackend[LLMEmbeddingBackendConfig]):
         return model
 
     def embed(self, inputs: Iterable[str]) -> Iterator[list[float]]:
-        model = self._get_llm_embeddings_model()
+        model = self._get_llm_embedding_model()
         yield from model.embed_multi(inputs)

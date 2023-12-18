@@ -42,6 +42,7 @@ jobs:
       matrix:
         python: ["3.11", "3.12"]
         db: ["sqlite"]
+        ai_backend: ["llm", "base"]
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python ${{ matrix.python }}
@@ -52,10 +53,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip setuptools wheel
           python -m pip install --upgrade tox tox-gh-actions
+
       - name: Test
         run: tox
         env:
-          DB: sqlite
+          DB: ${{ matrix.db }}
+          AI_BACKEND: ${{ matrix.ai_backend }}
 
       - name: Upload coverage data
         uses: actions/upload-artifact@v3
@@ -72,6 +75,7 @@ jobs:
       matrix:
         python: ["3.11", "3.12"]
         db: ["postgres"]
+        ai_backend: ["llm", "base"]
 
     services:
       postgres:
@@ -96,7 +100,8 @@ jobs:
         run: tox
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/wagtail_vector_index
-          DB: postgres
+          DB: ${{ matrix.db }}
+          AI_BACKEND: ${{ matrix.ai_backend }}
       - name: Upload coverage data
         uses: actions/upload-artifact@v3
         with:
