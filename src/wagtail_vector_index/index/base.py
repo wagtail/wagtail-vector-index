@@ -1,4 +1,4 @@
-from collections.abc import Generator, Iterable, MutableSequence
+from collections.abc import Generator, Iterable
 from dataclasses import dataclass
 from typing import Generic
 
@@ -57,7 +57,7 @@ class VectorIndex(Generic[VectorIndexableType]):
 
         similar_documents = self.backend_index.similarity_search(query_embedding)
 
-        sources = self._deduplicate_lit(self.object_type.bulk_from_documents(similar_documents))
+        sources = self._deduplicate_list(self.object_type.bulk_from_documents(similar_documents))
 
         merged_context = "\n".join(doc.metadata["content"] for doc in similar_documents)
         prompt = (
@@ -85,16 +85,10 @@ class VectorIndex(Generic[VectorIndexableType]):
                 document.vector, limit=limit
             )
 
-        # Eliminate duplicates of the same objects.
-        return_list: MutableSequence[VectorIndexableType] = []
-        for return_obj in self.object_type.bulk_from_documents(similar_documents):
-            if not include_self and return_obj == object:
-                continue
-
-            if return_obj in return_list:
-                continue
-            return_list.append(return_obj)
-        return return_list
+        return self.deduplicate_list(
+            self.object_type.bulk_from_documents(similar_documents),
+            exclusions=None if include_self else [object],
+        )
 
     def search(self, query: str, *, limit: int = 5) -> list[VectorIndexableType]:
         """Perform a search against the index, returning only a list of matching sources"""
@@ -107,13 +101,20 @@ class VectorIndex(Generic[VectorIndexableType]):
         )
 
         # Eliminate duplicates of the same objects.
-        return_list: MutableSequence[VectorIndexableType] = []
-        for obj in self.object_type.bulk_from_documents(similar_documents):
-            if obj in return_list:
-                continue
-            return_list.append(obj)
+        return self.deduplicate_list(
+            self.object_type.bulk_from_documents(similar_documents)
+        )
 
-        return return_list
+    @staticmethod
+    def deduplicate_list(
+        documents: Iterable[VectorIndexableType],
+        *,
+        exclusions: Iterable[VectorIndexableType] | None = None,
+    ) -> list[VectorIndexableType]:
+        if exclusions is None:
+            exclusions = []
+        # This code assumes that dict.fromkeys preserves order.
+        return list(dict.fromkeys(item for item in documents if item not in exclusions))
 
     def rebuild_index(self) -> None:
         """Build the index from scratch"""
