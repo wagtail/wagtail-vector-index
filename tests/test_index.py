@@ -1,8 +1,7 @@
 import unittest
 
 import pytest
-from django.contrib.contenttypes.models import ContentType
-from factories import EmbeddingFactory, ExamplePageFactory
+from factories import ExamplePageFactory
 from faker import Faker
 from testapp.models import ExamplePage
 from wagtail_vector_index.ai import get_embedding_backend
@@ -11,7 +10,7 @@ from wagtail_vector_index.index import (
     get_vector_indexes,
     registry,
 )
-from wagtail_vector_index.models import Embedding, EmbeddingField
+from wagtail_vector_index.models import EmbeddingField
 
 fake = Faker()
 
@@ -90,34 +89,17 @@ def test_index_get_documents_returns_at_least_one_document_per_page():
 @pytest.mark.django_db
 def test_similar_returns_no_duplicates(mocker):
     pages = ExamplePageFactory.create_batch(10)
-    content_type = ContentType.objects.get_for_model(ExamplePage)
-    embeddings = {}
-    for page in pages:
-        embeddings[page.pk] = []
-        for i in range(10):
-            embeddings[page.pk].append(
-                EmbeddingFactory(
-                    content=page.body,
-                    object_id=str(page.pk),
-                    content_type=content_type,
-                    base_content_type=Embedding._get_base_content_type(page),
-                    vector=[1 * i, 2 * i, 3 * i],
-                )
-            )
-
     vector_index = ExamplePage.get_vector_index()
 
-    def gen_embeddings(self: ExamplePage, *args, **kwargs):
-        yield from embeddings[self.pk]
+    def gen_pages(cls: ExamplePage, *args, **kwargs):
+        yield from pages
 
     mocker.patch.object(
-        ExamplePage,
-        "generate_embeddings",
+        vector_index.object_type,
+        "bulk_from_documents",
         autospec=True,
-        side_effect=gen_embeddings,
+        side_effect=gen_pages,
     )
-
-    vector_index.rebuild_index()
 
     case = unittest.TestCase()
 
