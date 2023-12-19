@@ -1,9 +1,11 @@
 from collections.abc import Generator
 from dataclasses import dataclass
-from typing import Generic, Iterable, List
+from typing import Generic, Iterable, List, Callable
 
 from django.conf import settings
 
+from asgiref.sync import sync_to_async
+from channels.db import database_sync_to_async
 from wagtail_vector_index.ai import get_ai_backend
 from wagtail_vector_index.backends import get_vector_backend
 
@@ -18,6 +20,14 @@ class QueryResponse(Generic[VectorIndexableType]):
 
     response: str
     sources: Iterable[VectorIndexableType]
+
+
+@database_sync_to_async
+def get_metadata_from_documents_async(similar_documents):
+    metadata_list = []
+    for doc in similar_documents:
+        metadata_list.append(doc.metadata["content"])
+    return "\n".join(metadata_list)
 
 
 class VectorIndex(Generic[VectorIndexableType]):
@@ -55,8 +65,36 @@ class VectorIndex(Generic[VectorIndexableType]):
             merged_context,
             query,
         ]
+
         response = self.ai_backend.chat(system_messages=[], user_messages=user_messages)
+
         return QueryResponse(response=response, sources=sources)
+
+
+    async def query_async(self, query: str) -> tuple[Callable, Iterable[VectorIndexableType]]:
+        """
+        Async version of query method returning ai_backend.chat as a callable
+        """
+        query_embedding = self.ai_backend.embed([query])[0]
+
+        similar_documents = await sync_to_async(self.backend_index.similarity_search)(query_embedding)
+        sources = await sync_to_async(self.object_type.bulk_from_documents)(similar_documents)
+        merged_context = await get_metadata_from_documents_async(similar_documents)
+
+        prompt = (
+            getattr(settings, "WAGTAIL_VECTOR_INDEX_QUERY_PROMPT", None)
+            or "You are a helpful assistant. Use the following context to answer the question. Don't mention the context in your answer."
+        )
+        user_messages = [
+            prompt,
+            merged_context,
+            query,
+        ]
+        return (
+            self.ai_backend.chat(system_messages=[], user_messages=user_messages, stream=True), 
+            sources
+        )
+
 
     def similar(self, object: VectorIndexableType) -> List[VectorIndexableType]:
         """Find similar objects to the given object"""
