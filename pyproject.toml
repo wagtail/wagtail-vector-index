@@ -31,6 +31,7 @@ dependencies = [
     "langchain>=0.0.311",
     "every-ai>=1.1.1",
     "aiohttp>=3.9.0b0; python_version >= '3.12'",
+    "channels>=3.0.5",
 ]
 [project.optional-dependencies]
 numpy = [
@@ -45,6 +46,7 @@ qdrant = [
 weaviate = [
     "weaviate-client>=3.24.2",
 ]
+
 testing = [
     "dj-database-url==2.1.0",
     "pre-commit>=3.4.0",
