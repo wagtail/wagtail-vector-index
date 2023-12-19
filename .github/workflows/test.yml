@@ -41,8 +41,8 @@ jobs:
     strategy:
       matrix:
         python: ["3.11", "3.12"]
-        db: ["sqlite"]
-        ai_backend: ["llm", "base"]
+        django: ["4.2"]
+        wagtail: ["5.2"]
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python ${{ matrix.python }}
@@ -57,8 +57,9 @@ jobs:
       - name: Test
         run: tox
         env:
-          DB: ${{ matrix.db }}
-          AI_BACKEND: ${{ matrix.ai_backend }}
+          DB: sqlite
+          WAGTAIL: ${{ matrix.wagtail }}
+          DJANGO: ${{ matrix.django }}
 
       - name: Upload coverage data
         uses: actions/upload-artifact@v3
@@ -74,9 +75,8 @@ jobs:
     strategy:
       matrix:
         python: ["3.11", "3.12"]
-        db: ["postgres"]
-        ai_backend: ["llm", "base"]
-
+        django: ["4.2"]
+        wagtail: ["5.2"]
     services:
       postgres:
         image: ${{ matrix.postgres || 'ankane/pgvector:v0.5.1' }}
@@ -95,13 +95,15 @@ jobs:
       - name: Install Tox
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          python -m pip install --upgrade tox
+          python -m pip install --upgrade tox tox-gh-actions
       - name: Test
         run: tox
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/wagtail_vector_index
-          DB: ${{ matrix.db }}
-          AI_BACKEND: ${{ matrix.ai_backend }}
+          DB: postgres
+          WAGTAIL: ${{ matrix.wagtail }}
+          DJANGO: ${{ matrix.django }}
+
       - name: Upload coverage data
         uses: actions/upload-artifact@v3
         with:
