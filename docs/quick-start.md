@@ -53,3 +53,96 @@ python manage.py update_vector_indexes
 ```
 
 To skip the prompt, use the `--noinput` flag.
+
+## Using event-stream (WagtailVectorIndexSSEConsumer)
+
+The WagtailVectorIndexSSEConsumer is a asynchronous HTTP consumer designed for handling Server-Sent Events (SSE), for streaming responses from queries using the vector index in real-time. Using the consumer requires ASGI (uvicorn, daphne etc.) along with configuring django-channels.
+
+Configure channels via this [guide](https://channels.readthedocs.io/en/stable/topics/channel_layers.html#configuration), otherwise, simply add channels to INSTALLED_APPS.
+
+```python
+INSTALLED_APPS = [
+    "channels",
+    # ...
+]
+```
+
+and set the channel layer. The [in-memory channel layer](https://channels.readthedocs.io/en/stable/topics/channel_layers.html#in-memory-channel-layer) can be used for local envrionments, however, redis is the only offically maintained channel layer supported for production use, thus [channels_redis](https://pypi.org/project/channels-redis/) will have to be install.
+
+```
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
+}
+```
+
+You will now need to create an new consumer inheriting WagtailVectorIndexSSEConsumer, but, assigning a page model for the vector index you'd like to use.
+
+
+*Note: AuthMiddleware is required to provide User context to the consumer.
+
+```python
+import os
+
+from channels.auth import AuthMiddlewareStack
+from channels.routing import ProtocolTypeRouter, URLRouter
+from django.core.asgi import get_asgi_application
+from django.urls import path, re_path
+from wagtail_vector_index.consumers import WagtailVectorIndexSSEConsumer
+
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "app.settings.production")
+django_asgi_app = get_asgi_application()
+
+class WikiPageChatQuerySSEConsumer(WagtailVectorIndexSSEConsumer):
+    page_model_name = "wiki.WikiPage"
+
+
+application = ProtocolTypeRouter(
+    {
+        "http": URLRouter(
+            [
+                path(
+                    "chat-query-sse/<uuid:channel_uuid>/",
+                    AuthMiddlewareStack(WikiPageChatQuerySSEConsumer.as_asgi()),
+                ),
+                re_path(r"", get_asgi_application()),
+            ]
+        ),
+    }
+)
+```
+
+You should now be able to query the consumer via the EventSource API, you can use the snippet below as a reference.
+
+```javascript
+import { v4 as uuidv4 } from 'uuid';
+
+
+function chatQuery(query) {
+    const searchParams = new URLSearchParams({
+        query,
+    });
+    const es = new EventSource(
+        `/chat-query-sse/${uuidv4()}/?query=${searchParams}`,
+    );
+
+    es.onmessage = (e) => {
+        console.log(e.data);
+        // Do something
+    };
+    es.onerror = () => {
+        // Ending an EventSource object from the server results in an error.
+        // Close the EventSource here to prevent repeated requests.
+        es.close();
+    };
+}
+```
+
+### Known issues
+
+Asynchronous support in Django is fairly new, as a result of this WagtailVectorIndexSSEConsumer can't tell when a client disconnects from an event-stream, This may result in queries being processed by the server as zombie threads. Support for handling [client disconnects](https://docs.djangoproject.com/en/dev/topics/async/#handling-disconnects) was added in Django 5.0, although currently untested in this package.

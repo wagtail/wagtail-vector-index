@@ -4,6 +4,9 @@ from typing import Generic
 
 from django.conf import settings
 
+from asgiref.sync import sync_to_async
+from typing import Generic, Iterable, List, Callable
+from channels.db import database_sync_to_async
 from wagtail_vector_index.ai import get_chat_backend, get_embedding_backend
 from wagtail_vector_index.backends import get_vector_backend
 
@@ -19,6 +22,14 @@ class QueryResponse(Generic[VectorIndexableType]):
 
     response: str
     sources: Iterable[VectorIndexableType]
+
+
+@database_sync_to_async
+def get_metadata_from_documents_async(similar_documents):
+    metadata_list = []
+    for doc in similar_documents:
+        metadata_list.append(doc.metadata["content"])
+    return "\n".join(metadata_list)
 
 
 class VectorIndex(Generic[VectorIndexableType]):
@@ -70,8 +81,39 @@ class VectorIndex(Generic[VectorIndexableType]):
             merged_context,
             query,
         ]
+
         response = self.chat_backend.chat(user_messages=user_messages)
         return QueryResponse(response=response.text(), sources=sources)
+
+
+    async def query_async(self, query: str) -> tuple[Callable, Iterable[VectorIndexableType]]:
+        """
+        Async version of query method returning LLM response (chat) as a callable, and a list of sources
+        """
+        try:
+            query_embedding = next(self.embedding_backend.embed([query]))
+        except StopIteration as e:
+            raise ValueError("No embeddings were generated for the given query.") from e
+
+        similar_documents = await sync_to_async(self.backend_index.similarity_search)(query_embedding)
+
+        # Add and test async _deduplicate_list method
+        sources = await sync_to_async(self.object_type.bulk_from_documents)(similar_documents)
+        merged_context = await get_metadata_from_documents_async(similar_documents)
+
+        prompt = (
+            getattr(settings, "WAGTAIL_VECTOR_INDEX_QUERY_PROMPT", None)
+            or "You are a helpful assistant. Use the following context to answer the question. Don't mention the context in your answer."
+        )
+        user_messages = [
+            prompt,
+            merged_context,
+            query,
+        ]
+        return (
+            self.chat_backend.chat(system_messages=[], user_messages=user_messages, stream=True), 
+            sources
+        )
 
     def similar(
         self, object: VectorIndexableType, *, include_self: bool = False, limit: int = 5
