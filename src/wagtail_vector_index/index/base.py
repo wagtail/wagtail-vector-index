@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from collections.abc import Generator, Iterable
 from dataclasses import dataclass
 from typing import Generic
@@ -85,7 +86,7 @@ class VectorIndex(Generic[VectorIndexableType]):
                 document.vector, limit=limit
             )
 
-        return self.deduplicate_list(
+        return self._deduplicate_list(
             self.object_type.bulk_from_documents(similar_documents),
             exclusions=None if include_self else [object],
         )
@@ -101,20 +102,22 @@ class VectorIndex(Generic[VectorIndexableType]):
         )
 
         # Eliminate duplicates of the same objects.
-        return self.deduplicate_list(
+        return self._deduplicate_list(
             self.object_type.bulk_from_documents(similar_documents)
         )
 
     @staticmethod
-    def deduplicate_list(
+    def _deduplicate_list(
         documents: Iterable[VectorIndexableType],
         *,
         exclusions: Iterable[VectorIndexableType] | None = None,
     ) -> list[VectorIndexableType]:
         if exclusions is None:
             exclusions = []
-        # This code assumes that dict.fromkeys preserves order.
-        return list(dict.fromkeys(item for item in documents if item not in exclusions))
+        # This code assumes that OrderedDict.fromkeys preserves order.
+        return list(
+            OrderedDict.fromkeys(item for item in documents if item not in exclusions)
+        )
 
     def rebuild_index(self) -> None:
         """Build the index from scratch"""
