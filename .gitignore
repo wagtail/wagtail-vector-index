@@ -3,6 +3,7 @@ __pycache__/
 /build
 /dist
 /wagtail_vector_index.egg-info
+.coverage.*
 /.coverage
 .coverage.*
 /htmlcov

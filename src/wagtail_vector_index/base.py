@@ -2,6 +2,8 @@ from collections.abc import Generator
 from dataclasses import dataclass
 from typing import Iterable, List, Protocol, TypeVar
 
+from .ai_utils.backends.base import BaseEmbeddingBackend
+
 VectorIndexableType = TypeVar("VectorIndexableType", bound="VectorIndexable")
 
 
@@ -22,7 +24,9 @@ class VectorIndexable(Protocol[VectorIndexableType]):
     """Protocol for objects that can be converted to and from Documents, meaning they can be stored
     in a vector index."""
 
-    def to_documents(self, *, ai_backend: str) -> Generator[Document, None, None]:
+    def to_documents(
+        self, *, embedding_backend: BaseEmbeddingBackend
+    ) -> Generator[Document, None, None]:
         """Convert this object to a list of documents that can be passed to a vector storage backend"""
         ...
 
@@ -33,7 +37,10 @@ class VectorIndexable(Protocol[VectorIndexableType]):
 
     @classmethod
     def bulk_to_documents(
-        cls, objects: Iterable[VectorIndexableType], *, ai_backend: str
+        cls,
+        objects: Iterable[VectorIndexableType],
+        *,
+        embedding_backend: BaseEmbeddingBackend,
     ) -> Iterable[Document]:
         """Convert a list of objects to a list of documents that can be passed to a vector storage backend"""
         ...

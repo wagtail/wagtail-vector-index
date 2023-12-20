@@ -158,12 +158,54 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "test-media")
 
 WAGTAIL_SITE_NAME = "Wagtail AI test site"
 
-WAGTAIL_VECTOR_INDEX_AI_BACKENDS = {
-    "default": {
-        "BACKEND": "openai",
-        "CONFIG": {"api_key": os.environ.get("OPENAI_API_KEY")},
+_wagtail_ai_default_backend = (
+    os.environ.get("WAGTAIL_VECTOR_INDEX_DEFAULT_AI_BACKEND", "chatgpt").lower().strip()
+)
+if _wagtail_ai_default_backend == "chatgpt":
+    WAGTAIL_VECTOR_INDEX = {
+        "CHAT_BACKENDS": {
+            "default": {
+                "CLASS": "wagtail_vector_index.ai_utils.backends.llm.LLMChatBackend",
+                "CONFIG": {
+                    "MODEL_ID": "gpt-3.5-turbo",
+                },
+            },
+        },
+        "EMBEDDING_BACKENDS": {
+            "default": {
+                "CLASS": "wagtail_vector_index.ai_utils.backends.llm.LLMEmbeddingBackend",
+                "CONFIG": {
+                    "MODEL_ID": "ada-002",
+                },
+            }
+        },
     }
-}
+elif _wagtail_ai_default_backend == "echo":
+    WAGTAIL_VECTOR_INDEX = {
+        "CHAT_BACKENDS": {
+            "default": {
+                "CLASS": "wagtail_vector_index.ai_utils.backends.echo.EchoChatBackend",
+                "CONFIG": {
+                    "MODEL_ID": "echo",
+                    "MAX_WORD_SLEEP_SECONDS": 1,
+                    "TOKEN_LIMIT": 100,
+                },
+            },
+        },
+        "EMBEDDING_BACKENDS": {
+            "default": {
+                "CLASS": "wagtail_vector_index.ai_utils.backends.echo.EchoEmbeddingBackend",
+                "CONFIG": {
+                    "MODEL_ID": "echo",
+                    "MAX_WORD_SLEEP_SECONDS": 1,
+                    "TOKEN_LIMIT": 100,
+                    "EMBEDDING_OUTPUT_DIMENSIONS": 6,
+                },
+            }
+        },
+    }
+else:
+    raise ValueError(f"Invalid backend: {_wagtail_ai_default_backend}")
 
 _wagtail_vector_default_backend = (
     os.environ.get("WAGTAIL_VECTOR_INDEX_DEFAULT_BACKEND", "numpy").lower().strip()
@@ -183,3 +225,41 @@ elif _wagtail_vector_default_backend == "pgvector":
     }
 else:
     raise ValueError(f"Invalid backend: {_wagtail_vector_default_backend}")
+
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "formatters": {
+        "verbose": {
+            "format": "[%(asctime)s][%(process)d][%(levelname)s][%(name)s] %(message)s"
+        }
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "WARNING",
+    },
+    "loggers": {
+        "wagtail_vector_index": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+        "llm": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+        "testapp": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+    },
+}

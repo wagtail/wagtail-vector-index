@@ -1,8 +1,10 @@
-site_name: Wagtail AI Documentation
+site_name: Wagtail Vector Index Documentation
 theme:
   name: material
 
 markdown_extensions:
+  - admonition
+  - pymdownx.details
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span

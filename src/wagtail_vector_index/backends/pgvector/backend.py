@@ -1,14 +1,12 @@
 import logging
 from collections.abc import Generator, Iterable, MutableSequence, Sequence
 from dataclasses import dataclass
-from typing import Any
-
-from django.db.models import QuerySet
+from typing import Any, cast
 
 from wagtail_vector_index.backends import Backend, Index, SearchResponseDocument
 from wagtail_vector_index.base import Document
 
-from .models import PgvectorEmbedding
+from .models import PgvectorEmbedding, PgvectorEmbeddingQuerySet
 from .types import DistanceMethod
 
 logger = logging.Logger(__name__)
@@ -73,6 +71,7 @@ class PgvectorIndex(Index):
         for pgvector_embedding in (
             self._get_queryset()
             .select_related("embedding")
+            .filter(embedding_output_dimensions=len(query_vector))
             .order_by_distance(
                 query_vector, distance_method=self.distance_method, fetch_distance=False
             )[:limit]
@@ -82,8 +81,11 @@ class PgvectorIndex(Index):
             doc = embedding.to_document()
             yield SearchResponseDocument(id=doc.id, metadata=doc.metadata)
 
-    def _get_queryset(self) -> QuerySet[PgvectorEmbedding]:
-        return PgvectorEmbedding.objects.in_index(self.index_name)
+    def _get_queryset(self) -> PgvectorEmbeddingQuerySet:
+        # objects is technically a Manager instance but we want to use the custom
+        return cast(PgvectorEmbeddingQuerySet, PgvectorEmbedding.objects).in_index(
+            self.index_name
+        )
 
     def _bulk_create(self, embeddings: Sequence[PgvectorEmbedding]) -> None:
         PgvectorEmbedding.objects.bulk_create(
@@ -95,6 +97,7 @@ class PgvectorIndex(Index):
     def _document_to_embedding(self, document: Document) -> PgvectorEmbedding:
         return PgvectorEmbedding(
             embedding_id=document.id,
+            embedding_output_dimensions=len(document.vector),
             vector=document.vector,
             index_name=self.index_name,
         )

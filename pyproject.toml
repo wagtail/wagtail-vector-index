@@ -27,9 +27,6 @@ requires-python = ">=3.11"
 dependencies = [
     "Django>=4.2",
     "Wagtail>=5.2",
-    "tiktoken>=0.3.3",
-    "langchain>=0.0.311",
-    "every-ai>=1.1.1",
     "aiohttp>=3.9.0b0; python_version >= '3.12'",
 ]
 [project.optional-dependencies]
@@ -45,10 +42,14 @@ qdrant = [
 weaviate = [
     "weaviate-client>=3.24.2",
 ]
+llm = [
+    "llm>=0.12",
+]
 testing = [
     "dj-database-url==2.1.0",
     "pre-commit>=3.4.0",
     "pytest>=7.4.2",
+    "pytest-mock>=3.12.0",
     "pytest-django>=4.5.2",
     "wagtail-factories>=4.1.0",
     "factory-boy>=3.3.0",
@@ -88,5 +89,5 @@ DJANGO_SETTINGS_MODULE = "testapp.settings"
 pythonpath = ["./", "./tests"]
 
 [tool.ruff]
-select = ["F", "E", "C90", "I", "B", "DJ", "RUF", "TRY", "C4"]
+select = ["F", "E", "C90", "I", "B", "DJ", "RUF", "TRY", "C4", "TCH005", "TCH004"]
 ignore = ["TRY003", "E501", "RUF012"]

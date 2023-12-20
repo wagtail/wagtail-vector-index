@@ -1,35 +1,55 @@
-import every_ai
+from collections.abc import Mapping
+
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
-from every_ai import AIBackend
+
+from .ai_utils.backends import BackendSettingsDict
+from .ai_utils.backends import get_chat_backend as get_chat_backend_instance
+from .ai_utils.backends import (
+    get_embedding_backend as get_embedding_backend_instance,
+)
+from .ai_utils.backends.base import BaseChatBackend, BaseEmbeddingBackend
 
 
-class InvalidAIBackendError(ImproperlyConfigured):
-    def __init__(self, alias):
-        super().__init__(f"Invalid AI backend: {alias}")
-
-
-def get_ai_backend_config():
+def get_chat_backends_settings() -> Mapping[str, BackendSettingsDict]:
     try:
-        ai_backends = settings.WAGTAIL_VECTOR_INDEX_AI_BACKENDS
-    except AttributeError:
-        ai_backends = {
-            "default": {
-                "BACKEND": "openai",
-            }
+        return settings.WAGTAIL_VECTOR_INDEX["CHAT_BACKENDS"]
+    except (KeyError, AttributeError) as e:
+        raise ImproperlyConfigured(
+            '"CHAT_BACKENDS" is missing in "WAGTAIL_VECTOR_INDEX" setting.'
+        ) from e
+    return {
+        "default": {
+            "CLASS": "ai_utils.ai.llm.LLMChatBackend",
+            "CONFIG": {
+                "MODEL_ID": "gpt-3.5-turbo",
+            },
         }
+    }
 
-    return ai_backends
 
-
-def get_ai_backend(alias="default") -> AIBackend:
-    backend_config = get_ai_backend_config()
-
+def get_embedding_backends_settings() -> Mapping[str, BackendSettingsDict]:
     try:
-        config = backend_config[alias]
-        config_settings = config.get("CONFIG", {})
-        backend = every_ai.init(config["BACKEND"], **config_settings)
-    except (KeyError, ImportError) as e:
-        raise InvalidAIBackendError(alias) from e
+        return settings.WAGTAIL_VECTOR_INDEX["EMBEDDING_BACKENDS"]
+    except (KeyError, AttributeError) as e:
+        raise ImproperlyConfigured(
+            '"EMBEDDING_BACKENDS" is missing in "WAGTAIL_VECTOR_INDEX" setting.'
+        ) from e
+    return {
+        "default": {
+            "CLASS": "ai_utils.ai.llm.LLMEmbeddingBackend",
+            "CONFIG": {
+                "MODEL_ID": "text-embedding-ada-002",
+            },
+        }
+    }
 
-    return backend
+
+def get_chat_backend(alias: str) -> BaseChatBackend:
+    setting = get_chat_backends_settings()[alias]
+    return get_chat_backend_instance(backend_dict=setting, backend_id=alias)
+
+
+def get_embedding_backend(alias: str) -> BaseEmbeddingBackend:
+    setting = get_embedding_backends_settings()[alias]
+    return get_embedding_backend_instance(backend_dict=setting, backend_id=alias)
