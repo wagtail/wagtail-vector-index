@@ -1,3 +1,5 @@
+import unittest
+
 import pytest
 from factories import ExamplePageFactory
 from faker import Faker
@@ -82,3 +84,44 @@ def test_index_get_documents_returns_at_least_one_document_per_page():
     found_pages = {document.metadata.get("object_id") for document in documents}
 
     assert found_pages == {str(page.pk) for page in pages}
+
+
+@pytest.mark.django_db
+def test_similar_returns_no_duplicates(mocker):
+    pages = ExamplePageFactory.create_batch(10)
+    vector_index = ExamplePage.get_vector_index()
+
+    def gen_pages(cls: ExamplePage, *args, **kwargs):
+        yield from pages
+
+    mocker.patch.object(
+        vector_index.object_type,
+        "bulk_from_documents",
+        autospec=True,
+        side_effect=gen_pages,
+    )
+
+    case = unittest.TestCase()
+
+    # We expect 9 results without the page itself.
+    actual = vector_index.similar(pages[0], limit=100, include_self=False)
+    case.assertCountEqual(actual, pages[1:])
+
+    # We expect 10 results with the page itself.
+    actual = vector_index.similar(pages[0], limit=100, include_self=True)
+    case.assertCountEqual(actual, pages)
+
+
+DEDUPLICATE_LIST_TESTDATA = [
+    pytest.param([3, 1, 1, 2], None, [3, 1, 2]),
+    pytest.param([3, 1, 1, 2], [], [3, 1, 2]),
+    pytest.param([67, 333, 50, 10, 2, 2, 3, 333], [2], [67, 333, 50, 10, 3]),
+    pytest.param([67, 333, 50, 10, 2, 2, 3, 333], [2, 3], [67, 333, 50, 10]),
+]
+
+
+@pytest.mark.parametrize("input_list,exclusions,expected", DEDUPLICATE_LIST_TESTDATA)
+def test_deduplicate_list(input_list, exclusions, expected):
+    vector_index = ExamplePage.get_vector_index()
+
+    assert vector_index._deduplicate_list(input_list, exclusions=exclusions)
