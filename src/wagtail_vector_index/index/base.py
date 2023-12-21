@@ -1,6 +1,5 @@
 from collections.abc import Generator, Iterable
 from dataclasses import dataclass
-from typing import Generic
 
 from django.conf import settings
 
@@ -85,8 +84,9 @@ class VectorIndex(Generic[VectorIndexableType]):
         response = self.chat_backend.chat(user_messages=user_messages)
         return QueryResponse(response=response.text(), sources=sources)
 
-
-    async def query_async(self, query: str) -> tuple[Callable, Iterable[VectorIndexableType]]:
+    async def aquery(
+        self, query: str
+    ) -> tuple[Callable, Iterable[VectorIndexableType]]:
         """
         Async version of query method returning LLM response (chat) as a callable, and a list of sources
         """
@@ -95,10 +95,14 @@ class VectorIndex(Generic[VectorIndexableType]):
         except StopIteration as e:
             raise ValueError("No embeddings were generated for the given query.") from e
 
-        similar_documents = await sync_to_async(self.backend_index.similarity_search)(query_embedding)
 
+        similar_documents = await sync_to_async(self.backend_index.similarity_search)(
+            query_embedding
+        )
         # Add and test async _deduplicate_list method
-        sources = await sync_to_async(self.object_type.bulk_from_documents)(similar_documents)
+        sources = await sync_to_async(self.object_type.bulk_from_documents)(
+            similar_documents
+        )
         merged_context = await get_metadata_from_documents_async(similar_documents)
 
         prompt = (
