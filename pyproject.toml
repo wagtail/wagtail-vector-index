@@ -28,9 +28,11 @@ dependencies = [
     "Django>=4.2",
     "Wagtail>=5.2",
     "aiohttp>=3.9.0b0; python_version >= '3.12'",
-    "channels>=3.0.5",
 ]
 [project.optional-dependencies]
+sse = [
+    "channels>=3.0.5",
+]
 numpy = [
     "numpy>=1.26.0",
 ]

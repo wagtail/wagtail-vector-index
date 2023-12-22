@@ -58,7 +58,7 @@ To skip the prompt, use the `--noinput` flag.
 
 `WagtailVectorIndexSSEConsumer` is an asynchronous HTTP consumer designed for handling Server-Sent Events (SSE) for streaming responses from queries using the vector index in real-time. Using the consumer requires ASGI ([uvicorn](https://pypi.org/project/uvicorn/), [Daphne](https://pypi.org/project/daphne/) etc.) along with [django-channels](https://pypi.org/project/django-channels/).
 
-You can configure channels using the [official guide](https://channels.readthedocs.io/en/stable/topics/channel_layers.html#configuration). At a minimum, add `channels` to `INSTALLED_APPS` in your settings file.
+You can configure channels using the [official guide](https://channels.readthedocs.io/en/stable/topics/channel_layers.html#configuration). At a minimum, install the `channels` package and add it to `INSTALLED_APPS` in your settings file.
 
 ```python
 # settings.py
