@@ -263,3 +263,5 @@ LOGGING = {
         },
     },
 }
+
+WAGTAIL_VECTOR_INDEX_UPDATE_ON_PUBLISH = True  # Defaults to false
