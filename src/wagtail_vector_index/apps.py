@@ -12,7 +12,7 @@ class WagtailVectorIndexAppConfig(AppConfig):
             settings, "WAGTAIL_VECTOR_INDEX_UPDATE_ON_PUBLISH", False
         )
         if update_on_publish:
-            # Register singles update indexes on publish
+            # Register signals to update indexes on publish
             from wagtail_vector_index import signals
 
             signals.register_signal_handlers()
