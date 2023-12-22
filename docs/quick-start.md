@@ -56,22 +56,27 @@ To skip the prompt, use the `--noinput` flag.
 
 ## Using event-stream (WagtailVectorIndexSSEConsumer)
 
-The WagtailVectorIndexSSEConsumer is a asynchronous HTTP consumer designed for handling Server-Sent Events (SSE), for streaming responses from queries using the vector index in real-time. Using the consumer requires ASGI (uvicorn, daphne etc.) along with configuring django-channels.
+`WagtailVectorIndexSSEConsumer` is an asynchronous HTTP consumer designed for handling Server-Sent Events (SSE) for streaming responses from queries using the vector index in real-time. Using the consumer requires ASGI ([uvicorn](https://pypi.org/project/uvicorn/), [Daphne](https://pypi.org/project/daphne/) etc.) along with [django-channels](https://pypi.org/project/django-channels/).
 
-Configure channels via this [guide](https://channels.readthedocs.io/en/stable/topics/channel_layers.html#configuration), otherwise, simply add channels to INSTALLED_APPS.
+You can configure channels using the [official guide](https://channels.readthedocs.io/en/stable/topics/channel_layers.html#configuration). At a minimum, add `channels` to `INSTALLED_APPS` in your settings file.
 
 ```python
+# settings.py
+
 INSTALLED_APPS = [
     "channels",
     # ...
 ]
 ```
 
-You will now need to create an new consumer inheriting WagtailVectorIndexSSEConsumer, but, assigning a page model for the vector index you'd like to use.
+Next, you will need to define a new consumer inheriting from `WagtailVectorIndexSSEConsumer`, and assign a Wagtail page model for the vector index you'd like to use.
 
-\*Note: AuthMiddleware is required to provide User context to the consumer.
+!!! Note
+    The `AuthMiddleware` is required to provide the user context to the consumer.
+
 
 ```python
+# app_name/asgi.py
 import os
 
 from channels.auth import AuthMiddlewareStack
@@ -100,7 +105,7 @@ application = ProtocolTypeRouter(
 )
 ```
 
-You should now be able to query the consumer via the EventSource API, you can use the snippet below as a reference.
+You should now be able to query the consumer using the [EventSource](https://developer.mozilla.org/en-US/docs/Web/API/EventSource) API. The snippet below is an example implementation:
 
 ```javascript
 function chatQuery(query, pageType) {
@@ -122,4 +127,4 @@ function chatQuery(query, pageType) {
 
 ### Known issues
 
-Asynchronous support in Django is fairly new, as a result of this WagtailVectorIndexSSEConsumer can't tell when a client disconnects from an event-stream, This may result in queries being processed by the server as zombie threads.
+Asynchronous support in Django is fairly new and `WagtailVectorIndexSSEConsumer` can't tell when a client disconnects from an event-stream. This may result in queries being processed by the server as zombie threads.
