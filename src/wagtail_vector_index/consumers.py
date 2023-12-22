@@ -1,14 +1,11 @@
 import asyncio
 import logging
-from typing import Type
+from typing import Any
 
 from channels.generic.http import AsyncHttpConsumer
 from django import forms
-from django.apps import apps
+from django.core.exceptions import ValidationError
 from django.http import QueryDict
-
-# Define type instead of importing directly to prevent AppRegistryNotReady errors
-VectorIndexType = Type["wagtail_vector_index.index.VectorIndex"]  # noqa
 
 logger = logging.Logger(__name__)
 
@@ -17,7 +14,20 @@ class WagtailVectorIndexQueryParamsForm(forms.Form):
     """Provides a form for validating query parameters."""
 
     query = forms.CharField(max_length=255, required=True)
-    page_type = forms.CharField(max_length=255, required=True)
+    index = forms.CharField(max_length=255, required=True)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        from wagtail_vector_index.index import get_vector_indexes
+
+        self.indexes = get_vector_indexes()
+
+    def clean_index(self):
+        index = self.cleaned_data["index"]
+        if index not in self.indexes:
+            raise forms.ValidationError("Invalid index. Please choose a valid index.")
+        return index
 
 
 class WagtailVectorIndexSSEConsumer(AsyncHttpConsumer):
@@ -31,10 +41,10 @@ class WagtailVectorIndexSSEConsumer(AsyncHttpConsumer):
     Note:
         This consumer expects the following query parameters in the URL:
         - 'query': The search query.
-        - 'page_type': The type of Wagtail page to search.
+        - 'index': The vector index to perform the query with.
 
         Example URL:
-        "/chat-query-sse/?query=example&page_type=news.NewsPage"
+        "/chat-query-sse/?query=example&index=news.NewsPage"
     """
 
     async def handle(self, body: bytes) -> None:
@@ -56,34 +66,33 @@ class WagtailVectorIndexSSEConsumer(AsyncHttpConsumer):
 
             # Validate query parameters
             form = WagtailVectorIndexQueryParamsForm(query_dict)
-            if form.is_valid():
-                query = form.cleaned_data["query"]
-                page_type = form.cleaned_data["page_type"]
+            if not form.is_valid():
+                # Ignore "TRY301 Abstract `raise` to an inner function"
+                # So we can insure the event-stream is closed and no other code is executed
+                raise ValidationError("Invalid query parameters.")  # noqa: TRY301
+            query = form.cleaned_data["query"]
+            index = form.cleaned_data["index"]
 
-                # Get a model class by its name
-                page_model = apps.get_model(page_type)
-                vector_index = page_model.get_vector_index()
+            vector_index = form.indexes.get(index)
 
-                try:
-                    # Process and reply to prompt
-                    await self.process_prompt(query, vector_index)
-                except Exception:
-                    logging.exception(
-                        "Unexpected error in WagtailVectorIndexSSEConsumer"
-                    )
-                    payload = (
-                        "data: Error processing request, Please try again later. \n\n"
-                    )
-                    await self.send_body(payload.encode("utf-8"), more_body=True)
+            if vector_index:
+                await self.process_prompt(query, vector_index)
 
-        except (ValueError, UnicodeDecodeError, KeyError, LookupError, AttributeError):
-            payload = "data: Error processing request. \n\n"
-            await self.send_body(payload.encode("utf-8"), more_body=True)
+        except ValidationError:
+            await self.error_response()
+
+        except Exception:
+            logging.exception("Unexpected error in WagtailVectorIndexSSEConsumer")
+            await self.error_response()
 
         # Finish the response
         await self.send_body(b"")
 
-    async def process_prompt(self, query: str, vector_index: VectorIndexType) -> None:
+    async def error_response(self) -> None:
+        payload = "data: Error processing request, Please try again later. \n\n"
+        await self.send_body(payload.encode("utf-8"), more_body=True)
+
+    async def process_prompt(self, query: str, vector_index: Any) -> None:
         """
         Processes the incoming prompt and sends SSE updates.
 
