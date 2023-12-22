@@ -1,10 +1,14 @@
 import asyncio
 import logging
+from typing import Type
 
 from channels.generic.http import AsyncHttpConsumer
 from django import forms
 from django.apps import apps
 from django.http import QueryDict
+
+# Define type instead of importing directly to prevent AppRegistryNotReady errors
+VectorIndexType = Type["wagtail_vector_index.index.VectorIndex"]  # noqa
 
 logger = logging.Logger(__name__)
 
@@ -33,7 +37,7 @@ class WagtailVectorIndexSSEConsumer(AsyncHttpConsumer):
         "/chat-query-sse/?query=example&page_type=news.NewsPage"
     """
 
-    async def handle(self, body):
+    async def handle(self, body: bytes) -> None:
         """
         Handles HTTP requests, sets up SSE headers, and processes prompts.
         """
@@ -79,7 +83,7 @@ class WagtailVectorIndexSSEConsumer(AsyncHttpConsumer):
         # Finish the response
         await self.send_body(b"")
 
-    async def process_prompt(self, query, vector_index):
+    async def process_prompt(self, query: str, vector_index: VectorIndexType) -> None:
         """
         Processes the incoming prompt and sends SSE updates.
 
