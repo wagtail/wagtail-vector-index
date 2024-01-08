@@ -53,3 +53,5 @@ python manage.py update_vector_indexes
 ```
 
 To skip the prompt, use the `--noinput` flag.
+
+Indexes can also be set to update automatically when a page is published, by setting `WAGTAIL_VECTOR_INDEX_UPDATE_ON_PUBLISH` to true inside your settings file.
