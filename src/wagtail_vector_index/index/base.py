@@ -1,4 +1,3 @@
-from collections import OrderedDict
 from collections.abc import Generator, Iterable
 from dataclasses import dataclass
 from typing import Generic
@@ -58,7 +57,9 @@ class VectorIndex(Generic[VectorIndexableType]):
 
         similar_documents = self.backend_index.similarity_search(query_embedding)
 
-        sources = self._deduplicate_list(self.object_type.bulk_from_documents(similar_documents))
+        sources = self._deduplicate_list(
+            self.object_type.bulk_from_documents(similar_documents)
+        )
 
         merged_context = "\n".join(doc.metadata["content"] for doc in similar_documents)
         prompt = (
@@ -114,10 +115,9 @@ class VectorIndex(Generic[VectorIndexableType]):
     ) -> list[VectorIndexableType]:
         if exclusions is None:
             exclusions = []
-        # This code assumes that OrderedDict.fromkeys preserves order.
-        return list(
-            OrderedDict.fromkeys(item for item in documents if item not in exclusions)
-        )
+        # This code assumes that dict.fromkeys preserves order which is
+        # behavior of the Python language since version 3.7.
+        return list(dict.fromkeys(item for item in documents if item not in exclusions))
 
     def rebuild_index(self) -> None:
         """Build the index from scratch"""
