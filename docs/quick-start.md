@@ -25,7 +25,7 @@ To index your models:
 ```python
 from django.db import models
 from wagtail.models import Page
-from wagtail_vector_index.index import VectorIndexedMixin, EmbeddingField
+from wagtail_vector_index.models import VectorIndexedMixin, EmbeddingField
 
 
 class MyPage(VectorIndexedMixin, Page):
