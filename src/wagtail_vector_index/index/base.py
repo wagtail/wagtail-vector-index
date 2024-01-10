@@ -1,6 +1,6 @@
-from collections.abc import Generator
+from collections.abc import Generator, Iterable
 from dataclasses import dataclass
-from typing import Generic, Iterable, List
+from typing import Generic
 
 from django.conf import settings
 
@@ -46,14 +46,21 @@ class VectorIndex(Generic[VectorIndexableType]):
     def get_documents(self) -> Iterable[Document]:
         raise NotImplementedError
 
-    def query(self, query: str) -> QueryResponse[VectorIndexableType]:
+    def query(
+        self, query: str, *, sources_limit: int = 5
+    ) -> QueryResponse[VectorIndexableType]:
         """Perform a natural language query against the index, returning a QueryResponse containing the natural language response, and a list of sources"""
         try:
             query_embedding = next(self.embedding_backend.embed([query]))
         except StopIteration as e:
             raise ValueError("No embeddings were generated for the given query.") from e
+
         similar_documents = self.backend_index.similarity_search(query_embedding)
-        sources = self.object_type.bulk_from_documents(similar_documents)
+
+        sources = self._deduplicate_list(
+            self.object_type.bulk_from_documents(similar_documents)
+        )
+
         merged_context = "\n".join(doc.metadata["content"] for doc in similar_documents)
         prompt = (
             getattr(settings, "WAGTAIL_VECTOR_INDEX_QUERY_PROMPT", None)
@@ -67,16 +74,23 @@ class VectorIndex(Generic[VectorIndexableType]):
         response = self.chat_backend.chat(user_messages=user_messages)
         return QueryResponse(response=response.text(), sources=sources)
 
-    def similar(self, object: VectorIndexableType) -> List[VectorIndexableType]:
+    def similar(
+        self, object: VectorIndexableType, *, include_self: bool = False, limit: int = 5
+    ) -> list[VectorIndexableType]:
         """Find similar objects to the given object"""
         object_documents: Generator[Document, None, None] = object.to_documents(
             embedding_backend=self.embedding_backend
         )
         similar_documents = []
         for document in object_documents:
-            similar_documents += self.backend_index.similarity_search(document.vector)
+            similar_documents += self.backend_index.similarity_search(
+                document.vector, limit=limit
+            )
 
-        return list(self.object_type.bulk_from_documents(similar_documents))
+        return self._deduplicate_list(
+            self.object_type.bulk_from_documents(similar_documents),
+            exclusions=None if include_self else [object],
+        )
 
     def search(self, query: str, *, limit: int = 5) -> list[VectorIndexableType]:
         """Perform a search against the index, returning only a list of matching sources"""
@@ -87,7 +101,23 @@ class VectorIndex(Generic[VectorIndexableType]):
         similar_documents = self.backend_index.similarity_search(
             query_embedding, limit=limit
         )
-        return list(self.object_type.bulk_from_documents(similar_documents))
+
+        # Eliminate duplicates of the same objects.
+        return self._deduplicate_list(
+            self.object_type.bulk_from_documents(similar_documents)
+        )
+
+    @staticmethod
+    def _deduplicate_list(
+        documents: Iterable[VectorIndexableType],
+        *,
+        exclusions: Iterable[VectorIndexableType] | None = None,
+    ) -> list[VectorIndexableType]:
+        if exclusions is None:
+            exclusions = []
+        # This code assumes that dict.fromkeys preserves order which is
+        # behavior of the Python language since version 3.7.
+        return list(dict.fromkeys(item for item in documents if item not in exclusions))
 
     def rebuild_index(self) -> None:
         """Build the index from scratch"""
