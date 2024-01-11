@@ -38,15 +38,13 @@ class ModelVectorIndex(VectorIndex["VectorIndexedMixin"]):
         querysets = self._get_querysets()
 
         for queryset in querysets:
-            for instance in queryset.prefetch_related(
-                "embeddings", "embeddings__content_type"
-            ):
+            for instance in queryset.prefetch_related("embeddings"):
                 for embedding in instance.embeddings.all():
                     yield Document(
                         id=embedding.pk,
                         vector=embedding.vector,
                         metadata={
-                            "content_type_id": embedding.content_type.pk,
+                            "content_type_id": embedding.content_type_id,
                             "object_id": embedding.object_id,
                             "content": embedding.content,
                         },
