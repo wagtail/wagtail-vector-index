@@ -74,7 +74,7 @@ project settings:
 ```python
 WAGTAIL_VECTOR_INDEX_VECTOR_BACKENDS = {
     "default": {
-        "BACKEND": "wagtail_vector_index.backends.pgvector.PgvectorBackend",
+        "BACKEND": "wagtail_vector_index.backends.pgvector.backend.PgvectorBackend",
     }
 }
 ```
