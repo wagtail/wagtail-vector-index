@@ -6,7 +6,6 @@ from django.contrib.contenttypes.models import ContentType
 from django.core import checks
 from django.core.exceptions import FieldDoesNotExist
 from django.db import models, transaction
-from wagtail.models import Page
 from wagtail.search.index import BaseField
 
 from wagtail_vector_index.index.base import Document
@@ -98,7 +97,7 @@ class VectorIndexedMixin(models.Model):
     embeddings = GenericRelation(
         Embedding, content_type_field="content_type", for_concrete_model=False
     )
-    vector_index_class = None
+    vector_index_class = ModelVectorIndex
 
     class Meta:
         abstract = True
@@ -240,21 +239,24 @@ class VectorIndexedMixin(models.Model):
             yield cls.from_document(document)
 
     @classmethod
-    def get_vector_index(cls):
+    def get_vector_index(cls) -> ModelVectorIndex:
         """Get a vector index instance for this model"""
 
-        # If the user has specified a custom `vector_index_class`, use that
-        if cls.vector_index_class:
-            index_cls = cls.vector_index_class
-        # If the model is a Wagtail Page, use a special PageVectorIndex
-        elif issubclass(cls, Page):
-            index_cls = PageVectorIndex
-        # Otherwise use the standard ModelVectorIndex
-        else:
-            index_cls = ModelVectorIndex
+        name = f"{cls.__name__}Index"
+        bases = (cls.vector_index_class,)
+        dict_ = {"querysets": [cls.objects.all()]}
+        index_class = type(name, bases, dict_)
+        return index_class(object_type=cls)
 
-        return type(
-            f"{cls.__name__}Index",
-            (index_cls,),
-            {"querysets": [cls.objects.all()]},
-        )(object_type=cls)
+
+class PageVectorIndexedMixin(VectorIndexedMixin):
+    vector_index_class = PageVectorIndex
+
+    class Meta:
+        abstract = True
+
+    @classmethod
+    def get_vector_index(cls) -> PageVectorIndex:
+        """Get a vector index instance for this model"""
+
+        return super().get_vector_index()  # type: ignore

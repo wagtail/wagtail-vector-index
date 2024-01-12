@@ -19,16 +19,16 @@ This way, when you provide a query, we can use the same model to get an embeddin
 
 To index your models:
 
-1. Add Wagtail Vector Index's `VectorIndexedMixin` mixin to your model
-2. Set `embedding_fields` to a list of `EmbeddingField`s representing the fields you want to be included in the embeddings
+1. Add Wagtail Vector Index's `PageVectorIndexedMixin` mixin to your page model.
+2. Set `embedding_fields` to a list of `EmbeddingField`s representing the fields you want to be included in the embeddings.
 
 ```python
 from django.db import models
 from wagtail.models import Page
-from wagtail_vector_index.models import VectorIndexedMixin, EmbeddingField
+from wagtail_vector_index.models import PageVectorIndexedMixin, EmbeddingField
 
 
-class MyPage(VectorIndexedMixin, Page):
+class MyPage(PageVectorIndexedMixin, Page):
     body = models.TextField()
 
     embedding_fields = [EmbeddingField("title"), EmbeddingField("body")]

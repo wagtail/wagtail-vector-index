@@ -6,7 +6,11 @@ from wagtail_vector_index.index.model import (
     PageVectorIndex,
 )
 from wagtail_vector_index.index.registry import registry
-from wagtail_vector_index.models import EmbeddingField, VectorIndexedMixin
+from wagtail_vector_index.models import (
+    EmbeddingField,
+    PageVectorIndexedMixin,
+    VectorIndexedMixin,
+)
 
 
 class ExampleModel(VectorIndexedMixin, models.Model):
@@ -19,7 +23,7 @@ class ExampleModel(VectorIndexedMixin, models.Model):
         return self.title
 
 
-class ExamplePage(VectorIndexedMixin, Page):
+class ExamplePage(PageVectorIndexedMixin, Page):
     body = RichTextField()
 
     content_panels = [*Page.content_panels, FieldPanel("body")]
@@ -27,7 +31,7 @@ class ExamplePage(VectorIndexedMixin, Page):
     embedding_fields = [EmbeddingField("title", important=True), EmbeddingField("body")]
 
 
-class DifferentPage(VectorIndexedMixin, Page):
+class DifferentPage(PageVectorIndexedMixin, Page):
     body = RichTextField()
 
     content_panels = [*Page.content_panels, FieldPanel("body")]
