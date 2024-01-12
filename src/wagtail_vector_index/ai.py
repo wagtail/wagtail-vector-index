@@ -3,7 +3,7 @@ from collections.abc import Mapping
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
-from .ai_utils.backends import BackendSettingsDict
+from .ai_utils.backends import BackendSettingsDict, EmbeddingBackendSettingsDict
 from .ai_utils.backends import get_chat_backend as get_chat_backend_instance
 from .ai_utils.backends import (
     get_embedding_backend as get_embedding_backend_instance,
@@ -28,7 +28,7 @@ def get_chat_backends_settings() -> Mapping[str, BackendSettingsDict]:
     }
 
 
-def get_embedding_backends_settings() -> Mapping[str, BackendSettingsDict]:
+def get_embedding_backends_settings() -> Mapping[str, EmbeddingBackendSettingsDict]:
     try:
         return settings.WAGTAIL_VECTOR_INDEX["EMBEDDING_BACKENDS"]
     except (KeyError, AttributeError) as e:

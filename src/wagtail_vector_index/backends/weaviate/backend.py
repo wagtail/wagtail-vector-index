@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import weaviate
+from django.core.exceptions import ImproperlyConfigured
 
 from wagtail_vector_index.backends import Backend, Index, SearchResponseDocument
 from wagtail_vector_index.base import Document
@@ -54,6 +55,8 @@ class WeaviateBackend(Backend[BackendConfig, WeaviateIndex]):
 
     def __init__(self, config: Mapping[str, Any]) -> None:
         super().__init__(config)
+        if self.config.API_KEY is None:
+            raise ImproperlyConfigured("Weaviate API key is not set")
         auth_config = weaviate.auth.AuthApiKey(api_key=self.config.API_KEY)
         self.client = weaviate.Client(self.config.HOST, auth_client_secret=auth_config)
 

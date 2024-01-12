@@ -33,7 +33,7 @@ class BaseChatConfigSettingsDict(BaseConfigSettingsDict):
 
 
 class BaseEmbeddingConfigSettingsDict(BaseConfigSettingsDict):
-    EMBEDDING_OUTPUT_DIMENSIONS: int
+    EMBEDDING_OUTPUT_DIMENSIONS: NotRequired[int | None]
 
 
 ConfigSettings = TypeVar(
@@ -154,7 +154,7 @@ class BaseEmbeddingConfig(BaseConfig[EmbeddingConfigSettings]):
 
     @classmethod
     def get_embedding_output_dimensions(
-        cls, *, model_id: str, custom_value: int
+        cls, *, model_id: str, custom_value: int | None
     ) -> int:
         if custom_value is not None:
             try:

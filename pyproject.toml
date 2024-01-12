@@ -54,6 +54,8 @@ testing = [
     "wagtail-factories>=4.1.0",
     "factory-boy>=3.3.0",
     "coverage>=7.0,<8.0",
+    "pyright>=1.1.345",
+    "django-types>=0.19.1",
 ]
 docs = [
     "mkdocs>=1.5.3",
@@ -91,3 +93,12 @@ pythonpath = ["./", "./tests"]
 [tool.ruff]
 select = ["F", "E", "C90", "I", "B", "DJ", "RUF", "TRY", "C4", "TCH005", "TCH004"]
 ignore = ["TRY003", "E501", "RUF012"]
+
+[tool.pyright]
+include = ["src/**"]
+exclude = [
+    "**/migrations",
+    "src/wagtail_vector_index/backends/qdrant/backend.py",
+]
+pythonVersion = "3.11"
+typeCheckingMode = "basic"
