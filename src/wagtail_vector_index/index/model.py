@@ -44,7 +44,7 @@ class ModelVectorIndex(VectorIndex["VectorIndexedMixin"]):
                         id=embedding.pk,
                         vector=embedding.vector,
                         metadata={
-                            "content_type_id": embedding.content_type.pk,
+                            "content_type_id": embedding.content_type_id,
                             "object_id": embedding.object_id,
                             "content": embedding.content,
                         },
