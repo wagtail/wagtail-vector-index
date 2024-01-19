@@ -37,4 +37,4 @@ class DifferentPage(VectorIndexedMixin, Page):
 
 @registry.register()
 class MultiplePageVectorIndex(PageVectorIndex):
-    querysets = [ExamplePage.objects.all(), DifferentPage.objects.all()]
+    querysets = [ExamplePage.objects.all(), DifferentPage.objects.all()]  # type: ignore

@@ -13,6 +13,7 @@ from .base import (
     BaseChatBackend,
     BaseConfigSettingsDict,
     BaseEmbeddingBackend,
+    BaseEmbeddingConfigSettingsDict,
 )
 
 
@@ -37,7 +38,7 @@ class ChatBackendSettingsDict(BackendSettingsDict):
 
 
 class EmbeddingBackendSettingsDict(BackendSettingsDict):
-    pass
+    CONFIG: Required[BaseEmbeddingConfigSettingsDict]
 
 
 def _validate_backend_settings(
@@ -152,5 +153,8 @@ def get_embedding_backend(
 ) -> BaseEmbeddingBackend:
     return cast(
         BaseEmbeddingBackend,
-        _get_backend(backend_dict=backend_dict, backend_id=backend_id),
+        _get_backend(
+            backend_dict=backend_dict,  # type: ignore
+            backend_id=backend_id,
+        ),
     )
