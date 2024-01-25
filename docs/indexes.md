@@ -6,23 +6,23 @@ A barebones implementation of `VectorIndex` needs to implement one method; `get_
 
 There are two ways to use Vector Indexes. Either:
 
--   Adding the `VectorIndexedMixin` to a Django model, which will automatically generate an Index for that model
+-   Adding the `PageVectorIndexedMixin` to a Wagtail Page model, or the `VectorIndexedMixin` to a plain Django model, which will automatically generate an Index for that model.
 -   Creating your own subclass of one of the `VectorIndex` classes.
 
-## Automatically Generating Indexes using `VectorIndexedMixin`
+## Automatically Generating Indexes using `PageVectorIndexedMixin` or `VectorIndexedMixin`
 
 To generate a Vector Index based on an existing model in your application:
 
-1. Add Wagtail AI's `VectorIndexedMixin` mixin to your model
-2. Set `embedding_fields` to a list of `EmbeddingField`s representing the fields you want to be included in the embeddings
+1. Add Wagtail AI's `PageVectorIndexedMixin` or `VectorIndexedMixin` mixin to your model.
+2. Set `embedding_fields` to a list of `EmbeddingField`s representing the fields you want to be included in the embeddings.
 
 ```python
 from django.db import models
 from wagtail.models import Page
-from wagtail_vector_index.index import VectorIndexedMixin, EmbeddingField
+from wagtail_vector_index.index import PageVectorIndexedMixin, EmbeddingField
 
 
-class MyPage(VectorIndexedMixin, Page):
+class MyPage(PageVectorIndexedMixin, Page):
     body = models.TextField()
 
     embedding_fields = [EmbeddingField("title"), EmbeddingField("body")]
