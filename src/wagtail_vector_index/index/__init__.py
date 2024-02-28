@@ -8,4 +8,4 @@ from .registry import registry
 def get_vector_indexes() -> dict[str, VectorIndex]:
     register_indexed_models()
 
-    return {name: cls(object_type=cls) for name, cls in registry._registry.items()}
+    return {name: cls() for name, cls in registry._registry.items()}
