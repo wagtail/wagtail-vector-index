@@ -22,6 +22,11 @@ class IndexOperations:
         results = index.search("")
         assert len(results) == 5
 
+    def test_query(self):
+        index = self.get_index()
+        results = index.query("")
+        assert len(results.sources) == 5
+
 
 class TestIndexOperationsFromModel(IndexOperations):
     def get_index(self):
