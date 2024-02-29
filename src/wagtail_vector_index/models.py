@@ -9,7 +9,7 @@ from django.db import models, transaction
 from wagtail.models import Page
 from wagtail.search.index import BaseField
 
-from wagtail_vector_index.index.base import Document
+from wagtail_vector_index.index.base import Document, VectorIndex
 from wagtail_vector_index.index.exceptions import IndexedTypeFromDocumentError
 from wagtail_vector_index.index.model import (
     ModelVectorIndex,
@@ -240,7 +240,7 @@ class VectorIndexedMixin(models.Model):
             yield cls.from_document(document)
 
     @classmethod
-    def get_vector_index(cls):
+    def get_vector_index(cls) -> VectorIndex:
         """Get a vector index instance for this model"""
 
         # If the user has specified a custom `vector_index_class`, use that
@@ -260,4 +260,4 @@ class VectorIndexedMixin(models.Model):
                 "querysets": [cls.objects.all()],
                 "object_type": cls,
             },
-        )()
+        )()  # type: ignore

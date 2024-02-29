@@ -34,7 +34,7 @@ def test_indexed_model_has_vector_index():
 
 def test_register_custom_vector_index():
     custom_index = type("MyVectorIndex", (VectorIndex,), {})
-    registry.register()(custom_index)
+    registry.register_index(custom_index())
     index_classes = [index.__class__ for index in get_vector_indexes().values()]
     assert custom_index in index_classes
 

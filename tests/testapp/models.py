@@ -35,6 +35,8 @@ class DifferentPage(VectorIndexedMixin, Page):
     embedding_fields = [EmbeddingField("title", important=True), EmbeddingField("body")]
 
 
-@registry.register()
 class MultiplePageVectorIndex(PageVectorIndex):
     querysets = [ExamplePage.objects.all(), DifferentPage.objects.all()]  # type: ignore
+
+
+registry.register_index(MultiplePageVectorIndex())
