@@ -26,11 +26,11 @@ class VectorIndex(Generic[VectorIndexableType]):
 
     embedding_backend: BaseEmbeddingBackend
     chat_backend: BaseChatBackend
+    object_type: type[VectorIndexableType]
 
     def __init__(
         self,
         *,
-        object_type: type[VectorIndexableType],
         chat_backend_alias="default",
         embedding_backend_alias="default",
         vector_backend_alias="default",
@@ -41,7 +41,6 @@ class VectorIndex(Generic[VectorIndexableType]):
         self.chat_backend = get_chat_backend(chat_backend_alias)
         self.vector_backend = get_vector_backend(alias=vector_backend_alias)
         self.backend_index = self.vector_backend.get_index(self.__class__.__name__)
-        self.object_type = object_type
 
     def get_documents(self) -> Iterable[Document]:
         raise NotImplementedError

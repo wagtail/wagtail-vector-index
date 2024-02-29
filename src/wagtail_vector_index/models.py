@@ -256,5 +256,8 @@ class VectorIndexedMixin(models.Model):
         return type(
             f"{cls.__name__}Index",
             (index_cls,),
-            {"querysets": [cls.objects.all()]},
-        )(object_type=cls)
+            {
+                "querysets": [cls.objects.all()],
+                "object_type": cls,
+            },
+        )()
