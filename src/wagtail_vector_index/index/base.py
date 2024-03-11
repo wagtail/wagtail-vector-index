@@ -1,16 +1,19 @@
+import logging
 from collections.abc import Generator, Iterable
 from dataclasses import dataclass
+from llm.models import Response
 
 from django.conf import settings
-
 from asgiref.sync import sync_to_async
-from typing import Generic, Iterable, List, Callable
+from typing import Generic, Iterable, List
 from channels.db import database_sync_to_async
 from wagtail_vector_index.ai import get_chat_backend, get_embedding_backend
 from wagtail_vector_index.backends import get_vector_backend
 
 from ..ai_utils.backends.base import BaseChatBackend, BaseEmbeddingBackend
 from ..base import Document, VectorIndexableType
+
+logger = logging.Logger(__name__)
 
 
 @dataclass
@@ -20,6 +23,17 @@ class QueryResponse(Generic[VectorIndexableType]):
     """
 
     response: str
+    sources: Iterable[VectorIndexableType]
+
+
+@dataclass
+class AsyncQueryResponse(Generic[VectorIndexableType]):
+    """Represents a response to the VectorIndex `aquery` method,
+    including a response object so users can call it's iterator 
+    and a list of sources that were used to generate the response
+    """
+
+    response: Response
     sources: Iterable[VectorIndexableType]
 
 
@@ -86,24 +100,26 @@ class VectorIndex(Generic[VectorIndexableType]):
 
     async def aquery(
         self, query: str
-    ) -> tuple[Callable, Iterable[VectorIndexableType]]:
+    ) -> AsyncQueryResponse[VectorIndexableType]:
         """
-        Async version of query method returning LLM response (chat) as a callable, and a list of sources
+        Async version of the query method.
         """
+        if not self.chat_backend.can_stream():
+            logger.warning("Chat backend does not support streaming")
+
         try:
             query_embedding = next(self.embedding_backend.embed([query]))
         except StopIteration as e:
             raise ValueError("No embeddings were generated for the given query.") from e
 
-
         similar_documents = await sync_to_async(self.backend_index.similarity_search)(
             query_embedding
         )
-        sources = []
-        # Add and test async _deduplicate_list method
-        # sources = await sync_to_async(self.object_type.bulk_from_documents)(
-        #     similar_documents
-        # )
+
+        sources = await sync_to_async(self._deduplicate_list)(
+            self.object_type.bulk_from_documents(similar_documents)
+        )
+
         merged_context = await get_metadata_from_documents_async(similar_documents)
 
         prompt = (
@@ -115,10 +131,9 @@ class VectorIndex(Generic[VectorIndexableType]):
             merged_context,
             query,
         ]
-        return (
-            self.chat_backend.chat(system_messages=[], user_messages=user_messages, stream=True), 
-            sources
-        )
+
+        response = self.chat_backend.chat(user_messages=user_messages)
+        return AsyncQueryResponse(response=response, sources=sources)
 
     def similar(
         self, object: VectorIndexableType, *, include_self: bool = False, limit: int = 5

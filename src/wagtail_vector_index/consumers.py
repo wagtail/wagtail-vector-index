@@ -100,14 +100,11 @@ class WagtailVectorIndexSSEConsumer(AsyncHttpConsumer):
             asyncio.CancelledError: If the connection is cancelled or disconnected.
         """
         try:
-            stream_response, _sources = await vector_index.aquery(query)
-            for chunk in stream_response:
-                if chunk.choices[0].delta.content is not None:
-                    content = chunk.choices[0].delta.content.replace(
-                        "\n", "<br/>"
-                    )  # Support line breaks
-                    payload = f"data: {content or ''}\n\n"
-                    await self.send_body(payload.encode("utf-8"), more_body=True)
+            results = await vector_index.aquery(query)
+            for chunk in results.response:
+                chunk = chunk.replace('\n', '<br/>')  # Replace newlines with HTML line breaks to avoid issues with encoding.
+                payload = f"data: {chunk}\n\n"  # Each message must be terminated using two newline characters. 
+                await self.send_body(payload.encode("utf-8"), more_body=True)
         except asyncio.CancelledError:
             # Handle disconnects if needed, can occur from a server restart.
             # Note: Django < 5 doesn't recognise client disconnects
