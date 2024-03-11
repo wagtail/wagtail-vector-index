@@ -1,11 +1,12 @@
 import asyncio
 import logging
-from typing import Any
 
 from channels.generic.http import AsyncHttpConsumer
 from django import forms
 from django.core.exceptions import ValidationError
 from django.http import QueryDict
+
+from .base import VectorIndexableType
 
 logger = logging.Logger(__name__)
 
@@ -92,7 +93,9 @@ class WagtailVectorIndexSSEConsumer(AsyncHttpConsumer):
         payload = "data: Error processing request, Please try again later. \n\n"
         await self.send_body(payload.encode("utf-8"), more_body=True)
 
-    async def process_prompt(self, query: str, vector_index: Any) -> None:
+    async def process_prompt(
+        self, query: str, vector_index: VectorIndexableType
+    ) -> None:
         """
         Processes the incoming prompt and sends SSE updates.
 
@@ -102,8 +105,10 @@ class WagtailVectorIndexSSEConsumer(AsyncHttpConsumer):
         try:
             results = await vector_index.aquery(query)
             for chunk in results.response:
-                chunk = chunk.replace('\n', '<br/>')  # Replace newlines with HTML line breaks to avoid issues with encoding.
-                payload = f"data: {chunk}\n\n"  # Each message must be terminated using two newline characters. 
+                chunk = chunk.replace(
+                    "\n", "<br/>"
+                )  # Replace newlines with HTML line breaks to avoid issues with encoding.
+                payload = f"data: {chunk}\n\n"  # Each message must be terminated using two newline characters.
                 await self.send_body(payload.encode("utf-8"), more_body=True)
         except asyncio.CancelledError:
             # Handle disconnects if needed, can occur from a server restart.

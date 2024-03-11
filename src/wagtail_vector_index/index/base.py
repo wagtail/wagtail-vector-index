@@ -1,12 +1,13 @@
 import logging
 from collections.abc import Generator, Iterable
 from dataclasses import dataclass
+from typing import Generic
+
+from asgiref.sync import sync_to_async
+from channels.db import database_sync_to_async
+from django.conf import settings
 from llm.models import Response
 
-from django.conf import settings
-from asgiref.sync import sync_to_async
-from typing import Generic, Iterable, List
-from channels.db import database_sync_to_async
 from wagtail_vector_index.ai import get_chat_backend, get_embedding_backend
 from wagtail_vector_index.backends import get_vector_backend
 
@@ -29,7 +30,7 @@ class QueryResponse(Generic[VectorIndexableType]):
 @dataclass
 class AsyncQueryResponse(Generic[VectorIndexableType]):
     """Represents a response to the VectorIndex `aquery` method,
-    including a response object so users can call it's iterator 
+    including a response object so users can call it's iterator
     and a list of sources that were used to generate the response
     """
 
@@ -98,9 +99,7 @@ class VectorIndex(Generic[VectorIndexableType]):
         response = self.chat_backend.chat(user_messages=user_messages)
         return QueryResponse(response=response.text(), sources=sources)
 
-    async def aquery(
-        self, query: str
-    ) -> AsyncQueryResponse[VectorIndexableType]:
+    async def aquery(self, query: str) -> AsyncQueryResponse[VectorIndexableType]:
         """
         Async version of the query method.
         """
