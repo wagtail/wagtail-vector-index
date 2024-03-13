@@ -17,8 +17,6 @@ from django.core.exceptions import ImproperlyConfigured
 from .. import embeddings, tokens
 from ..types import (
     AIResponse,
-    TextSplitterLengthCalculatorProtocol,
-    TextSplitterProtocol,
 )
 
 
@@ -58,36 +56,21 @@ class ConfigClassProtocol(Protocol[ConfigSettings]):
 
 @dataclass(kw_only=True)
 class BaseConfig(ConfigClassProtocol[ConfigSettings]):
-    chunk_overlap_characters: int
     model_id: str
-    text_splitter_class: type[TextSplitterProtocol]
-    text_splitter_length_calculator_class: type[TextSplitterLengthCalculatorProtocol]
     token_limit: int
 
     @classmethod
     def from_settings(
         cls,
         config: ConfigSettings,
-        *,
-        text_splitter_class: type[TextSplitterProtocol],
-        text_splitter_length_calculator_class: type[
-            TextSplitterLengthCalculatorProtocol
-        ],
         **kwargs: Any,
     ) -> Self:
         token_limit = cls.get_token_limit(
             model_id=config["MODEL_ID"], custom_value=config.get("TOKEN_LIMIT")
         )
-        chunk_overlap_characters = cls.get_chunk_overlap(
-            model_id=config["MODEL_ID"],
-            custom_value=config.get("CHUNK_OVERLAP_CHARACTERS"),
-        )
 
         return cls(
-            chunk_overlap_characters=chunk_overlap_characters,
             model_id=config["MODEL_ID"],
-            text_splitter_class=text_splitter_class,
-            text_splitter_length_calculator_class=text_splitter_length_calculator_class,
             token_limit=token_limit,
             **kwargs,
         )
@@ -108,17 +91,6 @@ class BaseConfig(ConfigClassProtocol[ConfigSettings]):
                 f'"TOKEN_LIMIT" is not configured for model "{model_id}".'
             ) from e
 
-    @classmethod
-    def get_chunk_overlap(cls, *, model_id: str, custom_value: int | None) -> int:
-        if custom_value is not None:
-            try:
-                return int(custom_value)
-            except ValueError as e:
-                raise ImproperlyConfigured(
-                    f'"CHUNK_OVERLAP_CHARACTERS" is not an "int", it is a "{type(custom_value)}".'
-                ) from e
-        return tokens.get_default_chunk_overlap()
-
 
 @dataclass(kw_only=True)
 class BaseChatConfig(BaseConfig[ChatConfigSettings]):
@@ -133,11 +105,6 @@ class BaseEmbeddingConfig(BaseConfig[EmbeddingConfigSettings]):
     def from_settings(
         cls,
         config: EmbeddingConfigSettings,
-        *,
-        text_splitter_class: type[TextSplitterProtocol],
-        text_splitter_length_calculator_class: type[
-            TextSplitterLengthCalculatorProtocol
-        ],
         **kwargs: Any,
     ) -> Self:
         embedding_output_dimensions = cls.get_embedding_output_dimensions(
@@ -147,8 +114,6 @@ class BaseEmbeddingConfig(BaseConfig[EmbeddingConfigSettings]):
         kwargs.setdefault("embedding_output_dimensions", embedding_output_dimensions)
         return super().from_settings(
             config=config,
-            text_splitter_class=text_splitter_class,
-            text_splitter_length_calculator_class=text_splitter_length_calculator_class,
             **kwargs,
         )
 
@@ -182,16 +147,6 @@ class BaseBackend(Generic[AnyBackendConfig]):
 
     def __init__(self, *, config: AnyBackendConfig) -> None:
         self.config = config
-
-    def get_text_splitter(self) -> TextSplitterProtocol:
-        return self.config.text_splitter_class(
-            chunk_size=self.config.token_limit,
-            chunk_overlap=self.config.chunk_overlap_characters,
-            length_function=self.get_splitter_length_calculator().get_splitter_length,
-        )
-
-    def get_splitter_length_calculator(self) -> TextSplitterLengthCalculatorProtocol:
-        return self.config.text_splitter_length_calculator_class()
 
 
 class BaseChatBackend(BaseBackend[ChatBackendConfig]):

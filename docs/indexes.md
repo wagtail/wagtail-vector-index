@@ -65,13 +65,7 @@ Due to token limitations in AI models, content from indexed models is split up i
 
 By default this is done by merging all `embedding_fields` together and then splitting on new paragraphs, new lines, sentences and words (getting more specific as required) until it fits within a defined split size.
 
-To customise this behaviour, override the `_get_split_content` method on a `VectorIndexedMixin` model.
+To customise this behaviour, either:
 
-```python
-def _get_split_content(
-    self, *, split_length: int = 800, split_overlap: int = 100
-) -> List[str]:
-    return ["What? A swallow carrying a coconut?"]
-```
-
-It is up to your implementation to respect the requested `split_length` and `split_overlap`.
+- Override the `_get_text_splitter` method on a `VectorIndexedMixin` model, returning a class that conforms to the `TextSplitterProtocol`.
+- Override the `_get_split_content` method on a `VectorIndexedMixin` model to split your content however you want.

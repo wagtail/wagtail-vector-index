@@ -17,6 +17,8 @@ from wagtail_vector_index.index.model import (
 )
 
 from .ai_utils.backends.base import BaseEmbeddingBackend
+from .ai_utils.text_splitting.langchain import LangchainRecursiveCharacterTextSplitter
+from .ai_utils.text_splitting.naive import NaiveTextSplitterCalculator
 
 
 class Embedding(models.Model):
@@ -110,11 +112,17 @@ class VectorIndexedMixin(models.Model):
         }
         return list(embedding_fields.values())
 
-    def _get_split_content(
-        self,
-        *,
-        embedding_backend: BaseEmbeddingBackend,
-    ) -> list[str]:
+    def _get_text_splitter(
+        self, chunk_size: int
+    ) -> LangchainRecursiveCharacterTextSplitter:
+        length_calculator = NaiveTextSplitterCalculator()
+        return LangchainRecursiveCharacterTextSplitter(
+            chunk_size=chunk_size,
+            chunk_overlap=100,
+            length_function=length_calculator.get_splitter_length,
+        )
+
+    def _get_split_content(self, *, chunk_size: int) -> list[str]:
         """Split the contents of a model instance's `embedding_fields` in to smaller chunks"""
         splittable_content = []
         important_content = []
@@ -135,7 +143,7 @@ class VectorIndexedMixin(models.Model):
 
         text = "\n".join(splittable_content)
         important_text = "\n".join(important_content)
-        splitter = embedding_backend.get_text_splitter()
+        splitter = self._get_text_splitter(chunk_size=chunk_size)
         return [f"{important_text}\n{text}" for text in splitter.split_text(text)]
 
     @classmethod
@@ -186,7 +194,9 @@ class VectorIndexedMixin(models.Model):
         self, *, embedding_backend: BaseEmbeddingBackend
     ) -> list[Embedding]:
         """Use the AI backend to generate and store embeddings for this object"""
-        splits = self._get_split_content(embedding_backend=embedding_backend)
+        splits = self._get_split_content(
+            chunk_size=embedding_backend.config.token_limit
+        )
         embeddings = Embedding.get_for_instance(self)
 
         # If the existing embeddings all match on content, we return them

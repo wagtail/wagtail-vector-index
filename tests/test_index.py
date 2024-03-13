@@ -4,7 +4,6 @@ import pytest
 from factories import ExamplePageFactory
 from faker import Faker
 from testapp.models import ExamplePage
-from wagtail_vector_index.ai import get_embedding_backend
 from wagtail_vector_index.index import (
     VectorIndex,
     get_vector_indexes,
@@ -69,9 +68,7 @@ def test_get_split_content_adds_important_field_to_each_split(patch_embedding_fi
     ):
         body = fake.text(max_nb_chars=200)
         instance = ExamplePageFactory.create(title="Important Title", body=body)
-        splits = instance._get_split_content(
-            embedding_backend=get_embedding_backend("default")
-        )
+        splits = instance._get_split_content(chunk_size=100)
         assert all(split.startswith(instance.title) for split in splits)
 
 

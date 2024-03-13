@@ -26,7 +26,3 @@ def get_default_token_limit(model_id: str) -> int:
 
         case _:
             raise NoTokenLimitFound(model_id)
-
-
-def get_default_chunk_overlap() -> int:
-    return 100

@@ -1,13 +1,11 @@
 from collections.abc import Mapping
-from dataclasses import dataclass
-from typing import NotRequired, Required, TypedDict, cast
+from typing import Required, TypedDict, cast
 
 from django.core.exceptions import ImproperlyConfigured
 from django.utils.module_loading import import_string
 
 from ..text_splitting.langchain import LangchainRecursiveCharacterTextSplitter
 from ..text_splitting.naive import NaiveTextSplitterCalculator
-from ..types import TextSplitterLengthCalculatorProtocol, TextSplitterProtocol
 from .base import (
     BaseBackend,
     BaseChatBackend,
@@ -15,11 +13,6 @@ from .base import (
     BaseEmbeddingBackend,
     BaseEmbeddingConfigSettingsDict,
 )
-
-
-class TextSplittingSettingsDict(TypedDict):
-    SPLITTER_CLASS: NotRequired[str]
-    SPLITTER_LENGTH_CALCULATOR_CLASS: NotRequired[str]
 
 
 class InvalidAIBackendError(ImproperlyConfigured):
@@ -30,7 +23,6 @@ class InvalidAIBackendError(ImproperlyConfigured):
 class BackendSettingsDict(TypedDict):
     CLASS: Required[str]
     CONFIG: Required[BaseConfigSettingsDict]
-    TEXT_SPLITTING: NotRequired[TextSplittingSettingsDict]
 
 
 class ChatBackendSettingsDict(BackendSettingsDict):
@@ -66,51 +58,6 @@ def _get_default_text_splitter_length_class() -> type[NaiveTextSplitterCalculato
     return NaiveTextSplitterCalculator
 
 
-@dataclass(kw_only=True)
-class _TextSplitterConfig:
-    splitter_class: type[TextSplitterProtocol]
-    splitter_length_calculator_class: type[TextSplitterLengthCalculatorProtocol]
-
-
-def _get_text_splitter_config(
-    *, backend_alias: str, config: TextSplittingSettingsDict
-) -> _TextSplitterConfig:
-    splitter_class_path = config.get("SPLITTER_CLASS")
-    length_calculator_class_path = config.get("SPLITTER_LENGTH_CALCULATOR_CLASS")
-
-    # Text splitter - class that splits text into chunks of a given size.
-    if splitter_class_path is not None:
-        try:
-            splitter_class = cast(
-                type[TextSplitterProtocol], import_string(splitter_class_path)
-            )
-        except ImportError as e:
-            raise ImproperlyConfigured(
-                f'Cannot import "SPLITTER_CLASS" ("{splitter_class_path}") for backend "{backend_alias}".'
-            ) from e
-    else:
-        splitter_class = _get_default_text_splitter_class()
-
-    # Text splitter length calculator - class that calculates the number of token in a given text.
-    if length_calculator_class_path is not None:
-        try:
-            length_calculator_class = cast(
-                type[TextSplitterLengthCalculatorProtocol],
-                import_string(length_calculator_class_path),
-            )
-        except ImportError as e:
-            raise ImproperlyConfigured(
-                f'Cannot import "SPLITTER_LENGTH_CALCULATOR_CLASS" ("{length_calculator_class_path}") for backend "{backend_alias}".'
-            ) from e
-    else:
-        length_calculator_class = _get_default_text_splitter_length_class()
-
-    return _TextSplitterConfig(
-        splitter_class=splitter_class,
-        splitter_length_calculator_class=length_calculator_class,
-    )
-
-
 def _get_backend(*, backend_dict: BackendSettingsDict, backend_id: str) -> BaseBackend:
     if "CLASS" not in backend_dict:
         raise ImproperlyConfigured(
@@ -127,14 +74,8 @@ def _get_backend(*, backend_dict: BackendSettingsDict, backend_id: str) -> BaseB
     _validate_backend_settings(settings=backend_dict, backend_id=backend_id)
 
     backend_settings = backend_dict["CONFIG"]
-    text_splitting = _get_text_splitter_config(
-        backend_alias=backend_id,
-        config=backend_dict.get("TEXT_SPLITTING", {}),
-    )
     config = backend_cls.config_cls.from_settings(
         backend_settings,
-        text_splitter_class=text_splitting.splitter_class,
-        text_splitter_length_calculator_class=text_splitting.splitter_length_calculator_class,
     )
 
     return backend_cls(config=config)
