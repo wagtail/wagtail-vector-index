@@ -77,7 +77,7 @@ python -m pip install flit
 # Change directory to where you have cloned the wagtail-ai repo
 cd wagtail-vector-index
 # Install the package using 'symlink' mode so you can change the code without having to reinstall it
-flit install -s
+python -m flit install -s
 ```
 
 ## pre-commit
