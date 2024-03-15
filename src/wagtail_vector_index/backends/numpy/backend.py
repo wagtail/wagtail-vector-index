@@ -11,8 +11,7 @@ logger = logging.Logger(__name__)
 
 
 @dataclass
-class BackendConfig:
-    ...
+class BackendConfig: ...
 
 
 class NumpyIndex(Index):
