@@ -89,6 +89,7 @@ exclude = [
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "testapp.settings"
 pythonpath = ["./", "./tests"]
+log_level = "INFO"
 
 [tool.ruff]
 select = ["F", "E", "C90", "I", "B", "DJ", "RUF", "TRY", "C4", "TCH005", "TCH004"]
