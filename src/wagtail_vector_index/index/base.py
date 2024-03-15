@@ -158,4 +158,5 @@ class VectorIndex:
             self.__class__.__name__,
             vector_size=self.embedding_backend.embedding_output_dimensions,
         )
+        print(self.get_documents())
         index.upsert(documents=self.get_documents())

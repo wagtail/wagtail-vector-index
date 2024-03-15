@@ -289,14 +289,12 @@ class ModelVectorIndex(VectorIndex):
     """A VectorIndex which indexes the results of querysets of EmbeddableFieldsMixin models"""
 
     querysets: ClassVar[Sequence[models.QuerySet]]
-    converter_class: ClassVar[
-        type[EmbeddableFieldsDocumentConverter]
-    ] = EmbeddableFieldsDocumentConverter
+    converter_class: ClassVar[type[DocumentConverter]]
 
     def _get_querysets(self) -> Sequence[models.QuerySet]:
         return self.querysets
 
-    def get_converter(self) -> EmbeddableFieldsDocumentConverter:
+    def get_converter(self) -> DocumentConverter:
         queryset_models = [qs.model for qs in self._get_querysets()]
         all_the_same = len(set(queryset_models)) == 1
         if not all_the_same:
@@ -305,27 +303,23 @@ class ModelVectorIndex(VectorIndex):
             )
         return self.converter_class(queryset_models[0])
 
-    def rebuild_index(self):
-        """Before building an index, generate Embedding objects for everything in
-        this index"""
-        querysets = self._get_querysets()
-
-        for queryset in querysets:
-            for instance in queryset:
-                self.get_converter().generate_embeddings(
-                    instance, embedding_backend=self.embedding_backend
-                )
-
-        return super().rebuild_index()
-
     def get_documents(self) -> Iterable[Document]:
         querysets = self._get_querysets()
+        all_documents = []
 
         for queryset in querysets:
             instances = queryset.prefetch_related("embeddings")
-            yield from self.get_converter().bulk_to_documents(
-                instances, embedding_backend=self.embedding_backend
+            # We need to consume the generator here to ensure that the
+            # Embedding models are created, even if it is not consumed
+            # by the caller
+            all_documents.append(
+                list(
+                    self.get_converter().bulk_to_documents(
+                        instances, embedding_backend=self.embedding_backend
+                    )
+                )
             )
+        return all_documents
 
 
 class PageVectorIndex(ModelVectorIndex):
