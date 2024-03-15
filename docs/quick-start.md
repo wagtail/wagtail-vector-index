@@ -37,7 +37,7 @@ class MyPage(VectorIndexedMixin, Page):
 A `ModelVectorIndex` will be generated for your model which can be accessed using the `get_vector_index()` classmethod, e.g.:
 
 ```python
-index = MyPage.get_vector_index()
+index = MyPage.vector_index
 ```
 
 If you want more control over how content is indexed, you can instead create your own indexes. See [./customising.md](Customising) for more details.

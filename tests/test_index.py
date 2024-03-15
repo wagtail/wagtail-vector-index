@@ -5,37 +5,33 @@ from factories import ExamplePageFactory
 from faker import Faker
 from testapp.models import ExamplePage
 from wagtail_vector_index.index import (
-    VectorIndex,
-    get_vector_indexes,
     registry,
 )
+from wagtail_vector_index.index.base import VectorIndex
 from wagtail_vector_index.index.models import EmbeddingField
 
 fake = Faker()
 
 
-def test_get_vector_indexes():
-    indexes = get_vector_indexes()
+def test_registry():
     expected_class_names = [
         "ExamplePageIndex",
         "ExampleModelIndex",
         "DifferentPageIndex",
         "MultiplePageVectorIndex",
     ]
-    index_class_names = [index.__class__.__name__ for index in indexes.values()]
-    assert set(index_class_names) == set(expected_class_names)
+    assert set(registry._registry.keys()) == set(expected_class_names)
 
 
 def test_indexed_model_has_vector_index():
-    index = ExamplePage.get_vector_index()
+    index = ExamplePage.vector_index
     assert index.__class__.__name__ == "ExamplePageIndex"
 
 
 def test_register_custom_vector_index():
     custom_index = type("MyVectorIndex", (VectorIndex,), {})
     registry.register()(custom_index)
-    index_classes = [index.__class__ for index in get_vector_indexes().values()]
-    assert custom_index in index_classes
+    assert registry["MyVectorIndex"] == custom_index
 
 
 def test_get_embedding_fields_count(patch_embedding_fields):
@@ -64,7 +60,7 @@ def test_checking_search_fields_errors_with_invalid_field(patch_embedding_fields
 @pytest.mark.django_db
 def test_index_get_documents_returns_at_least_one_document_per_page():
     pages = ExamplePageFactory.create_batch(10)
-    index = get_vector_indexes()["ExamplePageIndex"]
+    index = registry["ExamplePageIndex"]()
     index.rebuild_index()
     documents = index.get_documents()
     found_pages = {document.metadata.get("object_id") for document in documents}
@@ -75,7 +71,7 @@ def test_index_get_documents_returns_at_least_one_document_per_page():
 @pytest.mark.django_db
 def test_similar_returns_no_duplicates(mocker):
     pages = ExamplePageFactory.create_batch(10)
-    vector_index = ExamplePage.get_vector_index()
+    vector_index = ExamplePage.vector_index
 
     def gen_pages(cls, *args, **kwargs):
         yield from pages
@@ -108,6 +104,6 @@ DEDUPLICATE_LIST_TESTDATA = [
 
 @pytest.mark.parametrize("input_list,exclusions,expected", DEDUPLICATE_LIST_TESTDATA)
 def test_deduplicate_list(input_list, exclusions, expected):
-    vector_index = ExamplePage.get_vector_index()
+    vector_index = ExamplePage.vector_index
 
     assert vector_index._deduplicate_list(input_list, exclusions=exclusions)

@@ -2,9 +2,7 @@ import pytest
 from factories import ExamplePageFactory
 from faker import Faker
 from testapp.models import ExamplePage
-from wagtail_vector_index.index import (
-    get_vector_indexes,
-)
+from wagtail_vector_index.index import registry
 
 fake = Faker()
 
@@ -17,7 +15,7 @@ class IndexOperations:
     @pytest.fixture(autouse=True)
     def setup_models(self):
         ExamplePageFactory.create_batch(10)
-        ExamplePage.get_vector_index().rebuild_index()
+        ExamplePage.vector_index.rebuild_index()
 
     def get_index(self):
         raise NotImplementedError("Must be implemented in subclass")
@@ -35,9 +33,9 @@ class IndexOperations:
 
 class TestIndexOperationsFromModel(IndexOperations):
     def get_index(self):
-        return ExamplePage.get_vector_index()
+        return ExamplePage.vector_index
 
 
 class TestIndexOperationsFromRegistry(IndexOperations):
     def get_index(self):
-        return get_vector_indexes()["ExamplePageIndex"]
+        return registry["ExamplePageIndex"]()

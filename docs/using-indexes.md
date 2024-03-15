@@ -1,6 +1,6 @@
 # Using Vector Indexes
 
-Once you've got an instance of a Vector Index, either through `self.get_vector_index()` on a `VectorIndexedMixin` model, or through your own custom index, you can run a few useful operations on the index:
+Once you've got an instance of a Vector Index, either through `self.vector_index` on a `VectorIndexedMixin` model, or through your own custom index, you can run a few useful operations on the index:
 
 ### Natural language question/answers
 
