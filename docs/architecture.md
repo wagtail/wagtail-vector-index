@@ -1,6 +1,6 @@
 # Architecture
 
-This page describes the low-level architecture of `wagtail-vector-index`. It is intended for those who wish to contribute to the package, or to customise it's behaviour at the lowest levels.
+This page describes the low-level architecture of Wagtail Vector Index. It is intended for those who wish to contribute to the package, or to customise it's behaviour at the lowest levels.
 
 The APIs described here should not be considered 'public' or final unless they are documented elsewhere.
 
@@ -16,9 +16,9 @@ The `rebuild_index` method on a `VectorIndex` takes those documents and stores t
 
 ## `Backend` - `backends/__init__.py`
 
-`Backend`s represent some system where `Document`s can be stored. They're an abstraction that allows us to support multiple ways of managing embeddings ranging from `NumpyBackend` where everything is managed in-memory, through `PgVectorBackend` which uses your existing PostgreSQL database, to `WeaviateBackend` which enables support for SaaS vector database products.
+`Backend`s represent some system where `Document`s can be stored. They're an abstraction that allows us to support multiple ways of managing embeddings ranging from `NumpyBackend` where everything is managed in-memory, through `PgVectorBackend` which uses your existing PostgreSQL database, to `WeaviateBackend` which enables support for specific SaaS/self-hosted databases.
 
-A `VectorIndex` uses the `Backend` configured as `default` in the Django settings by default, but it can be overriden on a per-`VectorIndex` level so that multiple `Backend`s can be used in a single project.
+A `VectorIndex` uses the `Backend` configured as `default` in the Django settings by default. It can be overriden on a per-`VectorIndex` level so that multiple `Backend`s can be used in a single project.
 
 ## `Document` - `index/base.py`
 
@@ -39,7 +39,7 @@ To go from an object to a `Document` is usually a case of:
 3. Generating embeddings for each chunk
 4. Returning one or more `Document` objects containing the embedding and some metadata about the original object
 
-To go from a `Document` back to an object we have to rely on the `Document` `metadata`. This could be something like an `id` or `UUID` which will enable us to retrieve the original object from a database/filesystem, or it could be more complex metadata allowing us to reconstruct the object.
+To go from a `Document` back to an object we have to rely on the `Document` `metadata`. This could be something like a primary key or UUID which will enable us to retrieve the original object from a database/filesystem, or it could be more complex metadata allowing us to reconstruct the object.
 
 ## Model-specific implementations - `index/models.py`
 
@@ -51,7 +51,7 @@ For this, we implement specialised versions of these classes/protocols and some 
 * `EmbeddableFieldsMixin` is a way to let developers specify what fields of their model they want to index by adding the mixin and adding `embedding_fields` to a model. This doesn't do anything interesting by itself.
 * `EmbeddableFieldsDocumentConverter` knows how to convert anything with the `EmbeddableFieldsMixin` to a document, and when instantiated with a `base_model`, knows how to convert `Documents` back to that `base_model`.
 * `ModelVectorIndex` can be subclassed with a list of `QuerySet`s of models with `EmbeddableFieldsMixin` and manages the index for them. It uses `EmbeddableFieldsDocumentConverter` to shepherd documents back and forth.
-* `GeneratedIndexMixin` is a convenience mixin which allows a developer to call `get_vector_index` on their model to return an automatically generated `ModelVectorIndex`.
+* `GeneratedIndexMixin` is a convenience mixin which allows a developer to access `vector_index` on their model to return an automatically generated `ModelVectorIndex`.
 * `VectorIndexedMixin` combines `GeneratedIndexMixin` and `EmbeddableFieldsMixin` to create a single mixin that developers can use to easily implement `wagtail-vector-index` features without needing to know the underlying mixins.
 
 ## In Summary
