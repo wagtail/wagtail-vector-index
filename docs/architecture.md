@@ -49,7 +49,7 @@ For this, we implement specialised versions of these classes/protocols and some 
 
 * `Embedding` is a Django model which stores embeddings in the application database, ignoring the presence of any specific Vector Backend. This enables quickly repopulating vector backends, as well as some performance optimisations as we can get use generic foreign keys to return our related model instances.
 * `EmbeddableFieldsMixin` is a way to let developers specify what fields of their model they want to index by adding the mixin and adding `embedding_fields` to a model. This doesn't do anything interesting by itself.
-* `EmbeddableFieldsDocumentConverter` knows how to convert anything with the `EmbeddableFieldsMixin` to a document, and when subclassed with a `base_model`, knows how to convert `Documents` back to that `base_model`.
+* `EmbeddableFieldsDocumentConverter` knows how to convert anything with the `EmbeddableFieldsMixin` to a document, and when instantiated with a `base_model`, knows how to convert `Documents` back to that `base_model`.
 * `ModelVectorIndex` can be subclassed with a list of `QuerySet`s of models with `EmbeddableFieldsMixin` and manages the index for them. It uses `EmbeddableFieldsDocumentConverter` to shepherd documents back and forth.
 * `GeneratedIndexMixin` is a convenience mixin which allows a developer to call `get_vector_index` on their model to return an automatically generated `ModelVectorIndex`.
 * `VectorIndexedMixin` combines `GeneratedIndexMixin` and `EmbeddableFieldsMixin` to create a single mixin that developers can use to easily implement `wagtail-vector-index` features without needing to know the underlying mixins.
