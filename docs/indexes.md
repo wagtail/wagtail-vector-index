@@ -1,17 +1,17 @@
 # Vector Indexes
 
-Vector Indexes are a feature of Wagtail Vector Index that allows you to query site content using AI tools. They provide a way to turn Django models, Wagtail pages, and anything else in to embeddings which are stored in your database (and optionally in another Vector Database), and then query that content using natural language.
+Vector Indexes are a feature of Wagtail Vector Index that allows you to query site content using AI tools. They provide a way to turn Django models, Wagtail pages, and anything else in to embeddings which are stored in your database (and optionally in another Vector Database), and then query that content for similarity or using natural language.
 
-A barebones implementation of `VectorIndex` needs to implement one method; `get_documents` - this returns an Iterable of `Document` objects, which represent an embedding along with some metadata.
+A barebones implementation of a `VectorIndex` needs to implement one method; `get_documents` - this returns an Iterable of `Document` objects, which represent an embedding along with some metadata.
 
 There are two ways to use Vector Indexes. Either:
 
 -   Adding the `VectorIndexedMixin` to a Django model, which will automatically generate an Index for that model
--   Creating your own subclass of one of the `VectorIndex` classes.
+-   Creating your own subclass of one of the `VectorIndex` base classes.
 
 ## Automatically Generating Indexes using `VectorIndexedMixin`
 
-To generate a Vector Index based on an existing model in your application:
+If you don't need to customise the way your index behaves, you can automatically generate a Vector Index based on an existing model in your application:
 
 1. Add Wagtail AI's `VectorIndexedMixin` mixin to your model
 2. Set `embedding_fields` to a list of `EmbeddingField`s representing the fields you want to be included in the embeddings
@@ -32,6 +32,26 @@ You'll then be able to call the `get_vector_index()` classmethod on your model t
 
 ```python
 index = MyPage.get_vector_index()
+```
+
+## Creating your own index
+
+If you want to customise your vector index, you can build your own subclass of `ModelVectorIndex` and configure your model to use it.
+
+```python
+from wagtail_vector_index.index import ModelVectorIndex
+
+
+class MyModelVectorIndex(ModelVectorIndex):
+    embedding_backend = MyEmbeddingBackend
+
+
+class MyPage(VectorIndexedMixin, Page):
+    body = models.TextField()
+
+    embedding_fields = [EmbeddingField("title"), EmbeddingField("body")]
+
+    vector_index_class = MyModelVectorIndex
 ```
 
 

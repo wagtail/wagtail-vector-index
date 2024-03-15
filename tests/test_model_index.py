@@ -1,7 +1,12 @@
 import pytest
 from factories import ExamplePageFactory
+from faker import Faker
 from testapp.models import ExamplePage
-from wagtail_vector_index.index import get_vector_indexes
+from wagtail_vector_index.index import (
+    get_vector_indexes,
+)
+
+fake = Faker()
 
 pytestmark = pytest.mark.django_db
 

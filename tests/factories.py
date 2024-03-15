@@ -2,7 +2,7 @@ import factory
 import wagtail_factories
 from faker import Faker
 from testapp.models import DifferentPage, ExamplePage
-from wagtail_vector_index.models import Embedding
+from wagtail_vector_index.index.models import Embedding
 
 fake = Faker()
 

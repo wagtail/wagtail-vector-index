@@ -1,8 +1,8 @@
-from .base import VectorIndex
-from .model import (
+from wagtail_vector_index.index.base import VectorIndex
+from wagtail_vector_index.index.models import (
     register_indexed_models,
 )
-from .registry import registry
+from wagtail_vector_index.index.registry import registry
 
 
 def get_vector_indexes() -> dict[str, VectorIndex]:

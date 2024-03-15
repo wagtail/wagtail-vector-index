@@ -2,11 +2,12 @@ from django.db import models
 from wagtail.admin.panels import FieldPanel
 from wagtail.fields import RichTextField
 from wagtail.models import Page
-from wagtail_vector_index.index.model import (
+from wagtail_vector_index.index.models import (
+    EmbeddingField,
     PageVectorIndex,
+    VectorIndexedMixin,
 )
 from wagtail_vector_index.index.registry import registry
-from wagtail_vector_index.models import EmbeddingField, VectorIndexedMixin
 
 
 class ExampleModel(VectorIndexedMixin, models.Model):

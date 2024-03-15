@@ -9,7 +9,7 @@ from wagtail_vector_index.index import (
     get_vector_indexes,
     registry,
 )
-from wagtail_vector_index.models import EmbeddingField
+from wagtail_vector_index.index.models import EmbeddingField
 
 fake = Faker()
 
@@ -62,17 +62,6 @@ def test_checking_search_fields_errors_with_invalid_field(patch_embedding_fields
 
 
 @pytest.mark.django_db
-def test_get_split_content_adds_important_field_to_each_split(patch_embedding_fields):
-    with patch_embedding_fields(
-        ExamplePage, [EmbeddingField("title", important=True), EmbeddingField("body")]
-    ):
-        body = fake.text(max_nb_chars=200)
-        instance = ExamplePageFactory.create(title="Important Title", body=body)
-        splits = instance._get_split_content(chunk_size=100)
-        assert all(split.startswith(instance.title) for split in splits)
-
-
-@pytest.mark.django_db
 def test_index_get_documents_returns_at_least_one_document_per_page():
     pages = ExamplePageFactory.create_batch(10)
     index = get_vector_indexes()["ExamplePageIndex"]
@@ -88,11 +77,11 @@ def test_similar_returns_no_duplicates(mocker):
     pages = ExamplePageFactory.create_batch(10)
     vector_index = ExamplePage.get_vector_index()
 
-    def gen_pages(cls: ExamplePage, *args, **kwargs):
+    def gen_pages(cls, *args, **kwargs):
         yield from pages
 
     mocker.patch.object(
-        vector_index.object_type,
+        vector_index.converter_class,
         "bulk_from_documents",
         autospec=True,
         side_effect=gen_pages,

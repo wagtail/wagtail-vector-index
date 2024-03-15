@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from wagtail_vector_index.backends import Backend, Index, SearchResponseDocument
-from wagtail_vector_index.base import Document
+from wagtail_vector_index.index.base import Document
 
 logger = logging.Logger(__name__)
 

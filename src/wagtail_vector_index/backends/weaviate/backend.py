@@ -6,7 +6,7 @@ import weaviate
 from django.core.exceptions import ImproperlyConfigured
 
 from wagtail_vector_index.backends import Backend, Index, SearchResponseDocument
-from wagtail_vector_index.base import Document
+from wagtail_vector_index.index.base import Document
 
 
 @dataclass

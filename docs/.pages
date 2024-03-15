@@ -4,3 +4,4 @@ nav:
     - indexes.md
     - using-indexes.md
     - vector-backends.md
+    - architecture.md

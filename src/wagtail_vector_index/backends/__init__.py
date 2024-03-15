@@ -8,8 +8,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.utils.module_loading import import_string
 
 if TYPE_CHECKING:
-    from wagtail_vector_index.base import Document
-    from wagtail_vector_index.index.base import VectorIndex
+    from wagtail_vector_index.index.base import Document, VectorIndex
 
 
 ConfigClass = TypeVar("ConfigClass")
@@ -96,7 +95,7 @@ def get_vector_backend_config() -> Mapping:
         }
 
 
-def get_vector_backend(*, alias="default") -> Backend:
+def get_vector_backend(alias: str) -> Backend:
     backend_config = get_vector_backend_config()
 
     try:

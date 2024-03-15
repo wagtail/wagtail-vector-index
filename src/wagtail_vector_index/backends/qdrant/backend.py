@@ -1,12 +1,12 @@
 from collections.abc import Generator, Iterable, Mapping, Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from typing import Any
 
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qdrant_models
 
 from wagtail_vector_index.backends import Backend, Index, SearchResponseDocument
-from wagtail_vector_index.base import Document
+from wagtail_vector_index.index.base import Document
 
 
 @dataclass
@@ -27,7 +27,7 @@ class QdrantIndex(Index):
             qdrant_models.PointStruct(
                 id=document.id,
                 vector=document.vector,
-                payload=asdict(document.metadata),
+                payload=document.metadata,
             )
             for document in documents
         ]
