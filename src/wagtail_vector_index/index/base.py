@@ -1,6 +1,6 @@
-from collections.abc import Generator, Iterable
+from collections.abc import Generator, Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import ClassVar, List, Protocol
+from typing import ClassVar, Protocol
 
 from django.conf import settings
 
@@ -18,8 +18,8 @@ class Document:
     """
 
     id: str
-    vector: List[float]
-    metadata: dict
+    vector: Sequence[float]
+    metadata: Mapping
 
 
 class DocumentConverter(Protocol):
@@ -143,8 +143,8 @@ class VectorIndex:
     def _deduplicate_list(
         objects: Iterable[object],
         *,
-        exclusions: Iterable | None = None,
-    ) -> list:
+        exclusions: Iterable[object] | None = None,
+    ) -> list[object]:
         if exclusions is None:
             exclusions = []
         # This code assumes that dict.fromkeys preserves order which is
@@ -158,5 +158,4 @@ class VectorIndex:
             self.__class__.__name__,
             vector_size=self.embedding_backend.embedding_output_dimensions,
         )
-        print(self.get_documents())
         index.upsert(documents=self.get_documents())
