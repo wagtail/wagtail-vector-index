@@ -95,6 +95,10 @@ class LLMChatBackend(BaseChatBackend[LLMChatBackendConfig]):
                 setattr(model, config_key, config_val)
         return model
 
+    def can_stream(self) -> bool:
+        model = self._get_llm_chat_model()
+        return model.can_stream
+
 
 class LLMEmbeddingBackend(BaseEmbeddingBackend[LLMEmbeddingBackendConfig]):
     config: LLMEmbeddingBackendConfig
