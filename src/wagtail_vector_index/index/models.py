@@ -24,19 +24,19 @@ from wagtail_vector_index.ai_utils.text_splitting.langchain import (
 from wagtail_vector_index.ai_utils.text_splitting.naive import (
     NaiveTextSplitterCalculator,
 )
+from wagtail_vector_index.index import registry
 from wagtail_vector_index.index.base import Document, DocumentConverter, VectorIndex
 from wagtail_vector_index.index.exceptions import IndexedTypeFromDocumentError
-from wagtail_vector_index.index.registry import registry
 
 """ Everything related to indexing Django models is in this file.
 
-    This includes:
+This includes:
 
-    - The Embedding Django model, which is used to store embeddings for model instances in the database
-    - The VectorIndexedMixin, which is a mixin for Django models that lets user define which fields should be used to generate embeddings
-    - The ModelVectorIndex, which is a VectorIndex that expects VectorIndexedMixin models
-    - The MixinModelDocumentConverter, which is a DocumentConverter that knows how to convert a model instance using the VectorIndexedMixin protocol to and from a Document
-    """
+- The Embedding Django model, which is used to store embeddings for model instances in the database
+- The VectorIndexedMixin, which is a mixin for Django models that lets user define which fields should be used to generate embeddings
+- The ModelVectorIndex, which is a VectorIndex that expects VectorIndexedMixin models
+- The MixinModelDocumentConverter, which is a DocumentConverter that knows how to convert a model instance using the VectorIndexedMixin protocol to and from a Document
+"""
 
 
 class Embedding(models.Model):
@@ -313,11 +313,9 @@ class ModelVectorIndex(VectorIndex):
             # We need to consume the generator here to ensure that the
             # Embedding models are created, even if it is not consumed
             # by the caller
-            all_documents.append(
-                list(
-                    self.get_converter().bulk_to_documents(
-                        instances, embedding_backend=self.embedding_backend
-                    )
+            all_documents += list(
+                self.get_converter().bulk_to_documents(
+                    instances, embedding_backend=self.embedding_backend
                 )
             )
         return all_documents
@@ -392,9 +390,9 @@ class GeneratedIndexMixin(models.Model):
 class VectorIndexedMixin(EmbeddableFieldsMixin, GeneratedIndexMixin, models.Model):
     """Model mixin which adds both the embeddable fields behaviour and the automatic index behaviour to a model."""
 
-    converter_class: ClassVar[
-        type[EmbeddableFieldsDocumentConverter]
-    ] = EmbeddableFieldsDocumentConverter
+    converter_class: ClassVar[type[EmbeddableFieldsDocumentConverter]] = (
+        EmbeddableFieldsDocumentConverter
+    )
 
     class Meta:
         abstract = True
@@ -408,4 +406,4 @@ def register_indexed_models():
         if issubclass(model, GeneratedIndexMixin) and not model._meta.abstract
     ]
     for model in indexed_models:
-        registry.register()(model.get_vector_index().__class__)
+        registry.register()(model.build_vector_index_class())
