@@ -173,7 +173,9 @@ class EmbeddableFieldsDocumentConverter:
         # The model that this converter will convert Documents back to
         self.base_model = base_model
 
-    def _get_split_content(self, object: object, *, chunk_size: int) -> list[str]:
+    def _get_split_content(
+        self, object: EmbeddableFieldsMixin, *, chunk_size: int
+    ) -> list[str]:
         """Split the contents of a model instance's `embedding_fields` in to smaller chunks"""
         splittable_content = []
         important_content = []
