@@ -75,4 +75,4 @@ def register_indexed_models():
         if issubclass(model, VectorIndexedMixin) and not model._meta.abstract
     ]
     for model in indexed_models:
-        registry.register()(model.get_vector_index().__class__)
+        registry.register_index(model.get_vector_index())
