@@ -67,5 +67,5 @@ By default this is done by merging all `embedding_fields` together and then spli
 
 To customise this behaviour, either:
 
-- Override the `_get_text_splitter` method on a `VectorIndexedMixin` model, returning a class that conforms to the `TextSplitterProtocol`.
+- Override the `_get_text_splitter_class` method on a `VectorIndexedMixin` model, returning a class that conforms to the `TextSplitterProtocol`.
 - Override the `_get_split_content` method on a `VectorIndexedMixin` model to split your content however you want.
