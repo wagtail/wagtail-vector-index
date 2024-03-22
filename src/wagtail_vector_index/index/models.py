@@ -12,7 +12,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core import checks
 from django.core.exceptions import FieldDoesNotExist
 from django.db import models, transaction
-from django.utils.functional import classproperty
+from django.utils.functional import classproperty  # type: ignore
 from wagtail.models import Page
 from wagtail.query import PageQuerySet
 from wagtail.search.index import BaseField
