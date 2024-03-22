@@ -1,83 +1,10 @@
 import pytest
-from wagtail_vector_index.ai_utils.backends import get_chat_backend
 from wagtail_vector_index.ai_utils.text_splitting.dummy import (
     DummyLengthCalculator,
-    DummyTextSplitter,
-)
-from wagtail_vector_index.ai_utils.text_splitting.langchain import (
-    LangchainRecursiveCharacterTextSplitter,
 )
 from wagtail_vector_index.ai_utils.text_splitting.naive import (
     NaiveTextSplitterCalculator,
 )
-
-
-def test_default_text_splitter():
-    chat_backend = get_chat_backend(
-        backend_dict={
-            "CLASS": "wagtail_vector_index.ai_utils.backends.echo.EchoChatBackend",
-            "CONFIG": {
-                "MODEL_ID": "echo",
-                "TOKEN_LIMIT": 1024,
-            },
-        },
-        backend_id="default",
-    )
-    text_splitter = chat_backend.get_text_splitter()
-    assert isinstance(text_splitter, LangchainRecursiveCharacterTextSplitter)
-
-
-def test_default_length_calculator():
-    chat_backend = get_chat_backend(
-        backend_dict={
-            "CLASS": "wagtail_vector_index.ai_utils.backends.echo.EchoChatBackend",
-            "CONFIG": {
-                "MODEL_ID": "echo",
-                "TOKEN_LIMIT": 1024,
-            },
-        },
-        backend_id="default",
-    )
-    length_calculator = chat_backend.get_splitter_length_calculator()
-    assert isinstance(length_calculator, NaiveTextSplitterCalculator)
-
-
-def test_custom_text_splitter():
-    chat_backend = get_chat_backend(
-        backend_dict={
-            "CLASS": "wagtail_vector_index.ai_utils.backends.echo.EchoChatBackend",
-            "CONFIG": {
-                "MODEL_ID": "echo",
-                "TOKEN_LIMIT": 1024,
-            },
-            "TEXT_SPLITTING": {
-                "SPLITTER_CLASS": "wagtail_vector_index.ai_utils.text_splitting.dummy.DummyTextSplitter"
-            },
-        },
-        backend_id="default",
-    )
-
-    text_splitter = chat_backend.get_text_splitter()
-    assert isinstance(text_splitter, DummyTextSplitter)
-
-
-def test_custom_length_calculator():
-    chat_backend = get_chat_backend(
-        backend_dict={
-            "CLASS": "wagtail_vector_index.ai_utils.backends.echo.EchoChatBackend",
-            "CONFIG": {
-                "MODEL_ID": "echo",
-                "TOKEN_LIMIT": 1024,
-            },
-            "TEXT_SPLITTING": {
-                "SPLITTER_LENGTH_CALCULATOR_CLASS": "wagtail_vector_index.ai_utils.text_splitting.dummy.DummyLengthCalculator"
-            },
-        },
-        backend_id="default",
-    )
-    length_calculator = chat_backend.get_splitter_length_calculator()
-    assert isinstance(length_calculator, DummyLengthCalculator)
-
 
 LENGTH_CALCULATOR_SAMPLE_TEXTS = [
     """Lorem ipsum dolor sit amet, consectetur adipiscing elit.

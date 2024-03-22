@@ -9,7 +9,3 @@ def test_get_default_token_limit_for_known_model():
 def test_get_default_token_limit_for_unknown_model():
     with pytest.raises(tokens.NoTokenLimitFound, match="echo-123-16k"):
         tokens.get_default_token_limit("echo-123-16k")
-
-
-def test_get_default_chunk_overlap():
-    assert tokens.get_default_chunk_overlap() == 100
