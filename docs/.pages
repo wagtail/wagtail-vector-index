@@ -1,7 +1,7 @@
 nav:
     - installation.md
     - quick-start.md
-    - indexes.md
     - using-indexes.md
+    - vector-indexes.md
     - vector-backends.md
     - architecture.md
