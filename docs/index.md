@@ -4,6 +4,7 @@ Wagtail Vector Index provides a way to turn Django models, Wagtail pages, and an
 
 This provides the backbone for features including:
 
+-   Retrieval-augmented text generation (RAG)
 -   Natural language search
 -   Similarity search
 -   Content recommendations

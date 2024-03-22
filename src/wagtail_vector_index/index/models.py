@@ -293,6 +293,9 @@ class EmbeddableFieldsVectorIndex(VectorIndex):
     def _get_querysets(self) -> Sequence[models.QuerySet]:
         return self.querysets
 
+    def get_converter_class(self) -> type[EmbeddableFieldsDocumentConverter]:
+        return EmbeddableFieldsDocumentConverter
+
     def get_converter(self) -> EmbeddableFieldsDocumentConverter:
         queryset_models = [qs.model for qs in self._get_querysets()]
         all_the_same = len(set(queryset_models)) == 1
@@ -300,7 +303,7 @@ class EmbeddableFieldsVectorIndex(VectorIndex):
             raise ValueError(
                 "All querysets must be of the same model to use the default converter."
             )
-        return EmbeddableFieldsDocumentConverter(queryset_models[0])
+        return self.get_converter_class()(queryset_models[0])
 
     def get_documents(self) -> Iterable[Document]:
         querysets = self._get_querysets()

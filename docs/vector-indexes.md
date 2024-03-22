@@ -39,21 +39,16 @@ The `VectorIndexedMixin` class is made up of two other mixins:
 - `EmbeddableFieldsMixin` which lets you define `embedding_fields` on a model
 - `GeneratedIndexMixin` which provides a method that automatically generates a Vector Index for you, and adds the `vector_index` convenience property for accessing that index.
 
-### Setting a custom DocumentConverter
-
-To convert your models/Pages in to `Documents` ready for ingestion in to the vector index, the package uses a `DocumentConverter`. By default, the `VectorIndexableMixin` uses the `EmbeddableFieldsDocumentConverter`, which knows how to parse the `embedded_fields` you specify,
-
-
 ## Creating your own index
 
-If you want to customise your vector index, you can build your own subclass of `EmbeddableFieldsVectorIndex` and configure your model to use it.
+If you want to customise your vector index, you can build your own subclass of `EmbeddableFieldsVectorIndex` and configure your model to use it with the `vector_index_class` property:
 
 ```python
 from wagtail_vector_index.index import EmbeddableFieldsVectorIndex
 
 
 class MyEmbeddableFieldsVectorIndex(EmbeddableFieldsVectorIndex):
-    embedding_backend = MyEmbeddingBackend
+    embedding_backend_alias = "openai"
 
 
 class MyPage(VectorIndexedMixin, Page):
@@ -65,11 +60,11 @@ class MyPage(VectorIndexedMixin, Page):
 ```
 
 
-## Indexing across models
+### Indexing across models
 
-If you want to be able to query across multiple models, or on a subset of models, they need to be in a vector index together.
+One of the things you might want to do with a custom index is query across multiple models, or on a subset of models. To do this, they need to be in a vector index together.
 
-To do this, you can define and register your own `EmbeddableFieldsVectorIndex`:
+To do this, override `querysets` or `_get_querysets()` on your `EmbeddableFieldsVectorIndex` class:
 
 ```python
 from wagtail_vector_index.index.models import EmbeddableFieldsVectorIndex
@@ -82,20 +77,40 @@ class MyEmbeddableFieldsVectorIndex(EmbeddableFieldsVectorIndex):
     ]
 ```
 
-Once populated (with the `update_vector_indexes` management command), this can be queried just like an automatically generated index:
+Once populated (with the `update_vector_indexes` management command), these indexes can be queried just like an automatically generated index:
 
 ```python
 index = MyEmbeddableFieldsVectorIndex()
 index.query("Are you suggesting that coconuts migrate?")
 ```
 
-## Customising embedding splits
+### Setting a custom DocumentConverter
 
-Due to token limitations in AI models, content from indexed models is split up in to chunks, with embeddings generated separately.
+The `EmbeddableFieldsVectorIndex` class knows how to split up your page/model using a Document Converter - a class which handles the conversion between your model and a Document, which is then stored in the vector store.
 
-By default this is done by merging all `embedding_fields` together and then splitting on new paragraphs, new lines, sentences and words (getting more specific as required) until it fits within a defined split size.
+By default this looks at all the `embedding_fields` on your page, builds a representation of them, splits them in to chunks and then generations embeddings for each chunk.
 
-To customise this behaviour, either:
+You might want to customise this behavior. To do this you can create your own `DocumentConverter`
 
-- Override the `_get_text_splitter` method on a `VectorIndexedMixin` model, returning a class that conforms to the `TextSplitterProtocol`.
-- Override the `_get_split_content` method on a `VectorIndexedMixin` model to split your content however you want.
+
+```python
+from wagtail_vector_index.index.models import (
+    EmbeddableFieldsVectorIndex,
+    EmbeddableFieldsDocumentConverter,
+)
+
+
+class MyDocumentConverter(EmbeddableFieldsDocumentConverter):
+    def _get_split_content(self, object, *, embedding_backend):
+        return object.body.split("\n")
+
+
+class MyEmbeddableFieldsVectorIndex(EmbeddableFieldsVectorIndex):
+    querysets = [
+        MyModel.objects.all(),
+        MyOtherModel.objects.filter(name__startswith="AI: "),
+    ]
+
+    def get_converter_class(self):
+        return MyDocumentConverter
+```

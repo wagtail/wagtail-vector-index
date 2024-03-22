@@ -33,8 +33,6 @@ index.similar(my_model_instance)
 [MyPage(1), MyPage(2)]
 ```
 
-The passed model instance doesn't have to be in the same index, but it must conform to the `VectorIndexable` protocol.
-
 This works by:
 
 1. Generating (or retrieving existing) embeddings for the instance
