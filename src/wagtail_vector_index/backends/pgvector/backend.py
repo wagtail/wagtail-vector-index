@@ -96,7 +96,7 @@ class PgvectorIndex(Index):
 
     def _document_to_embedding(self, document: Document) -> PgvectorEmbedding:
         return PgvectorEmbedding(
-            embedding_id=document.id,
+            embedding_id=document.embedding_pk,
             embedding_output_dimensions=len(document.vector),
             vector=document.vector,
             index_name=self.index_name,
