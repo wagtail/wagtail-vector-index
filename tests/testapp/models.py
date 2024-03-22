@@ -3,6 +3,7 @@ from wagtail.admin.panels import FieldPanel
 from wagtail.fields import RichTextField
 from wagtail.models import Page
 from wagtail_vector_index.index.models import (
+    EmbeddableFieldsDocumentConverter,
     EmbeddingField,
     PageEmbeddableFieldsVectorIndex,
     VectorIndexedMixin,
@@ -39,3 +40,6 @@ class DifferentPage(VectorIndexedMixin, Page):
 @registry.register()
 class MultiplePageVectorIndex(PageEmbeddableFieldsVectorIndex):
     querysets = [ExamplePage.objects.all(), DifferentPage.objects.all()]  # type: ignore
+
+    def get_converter(self):
+        return EmbeddableFieldsDocumentConverter(Page)
