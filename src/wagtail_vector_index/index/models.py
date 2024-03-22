@@ -342,7 +342,9 @@ class PageEmbeddableFieldsVectorIndex(EmbeddableFieldsVectorIndex):
 
 
 class GeneratedIndexMixin(models.Model):
-    """Mixin for Django models that automatically generates registers a VectorIndex for the model"""
+    """Mixin for Django models that automatically generates registers a VectorIndex for the model.
+
+    The model can still have custom VectorIndex classes registered if needed."""
 
     vector_index_class: ClassVar[Optional[type[VectorIndex]]] = None
 
