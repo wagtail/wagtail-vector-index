@@ -1,3 +1,4 @@
+# Vector Indexes
 
 Vector Indexes are a feature of Wagtail Vector Index that allows you to query site content using AI tools. They provide a way to turn Django models, Wagtail pages, and anything else in to embeddings which are stored in your database (and optionally in another Vector Database), and then query that content for similarity or using natural language.
 
@@ -27,7 +28,7 @@ class MyPage(VectorIndexedMixin, Page):
     embedding_fields = [EmbeddingField("title"), EmbeddingField("body")]
 ```
 
-You'll then be able to call the `vector_index` property on your model to get the generated `ModelVectorIndex`.
+You'll then be able to call the `vector_index` property on your model to get the generated `EmbeddableFieldsVectorIndex`.
 
 ```python
 index = MyPage.vector_index
@@ -36,5 +37,65 @@ index = MyPage.vector_index
 The `VectorIndexedMixin` class is made up of two other mixins:
 
 - `EmbeddableFieldsMixin` which lets you define `embedding_fields` on a model
-Vector Indexes are a feature of Wagtail Vector Index that allows you to query site content using AI tools. They provide a way to turn Django models, Wagtail pages, and anything else in to embeddings which are stored in your database (and optionally in another Vector Database), and then query that content for similarity or using natural language.
 - `GeneratedIndexMixin` which provides a method that automatically generates a Vector Index for you, and adds the `vector_index` convenience property for accessing that index.
+
+### Setting a custom DocumentConverter
+
+To convert your models/Pages in to `Documents` ready for ingestion in to the vector index, the package uses a `DocumentConverter`. By default, the `VectorIndexableMixin` uses the `EmbeddableFieldsDocumentConverter`, which knows how to parse the `embedded_fields` you specify,
+
+
+## Creating your own index
+
+If you want to customise your vector index, you can build your own subclass of `EmbeddableFieldsVectorIndex` and configure your model to use it.
+
+```python
+from wagtail_vector_index.index import EmbeddableFieldsVectorIndex
+
+
+class MyEmbeddableFieldsVectorIndex(EmbeddableFieldsVectorIndex):
+    embedding_backend = MyEmbeddingBackend
+
+
+class MyPage(VectorIndexedMixin, Page):
+    body = models.TextField()
+
+    embedding_fields = [EmbeddingField("title"), EmbeddingField("body")]
+
+    vector_index_class = MyEmbeddableFieldsVectorIndex
+```
+
+
+## Indexing across models
+
+If you want to be able to query across multiple models, or on a subset of models, they need to be in a vector index together.
+
+To do this, you can define and register your own `EmbeddableFieldsVectorIndex`:
+
+```python
+from wagtail_vector_index.index.models import EmbeddableFieldsVectorIndex
+
+
+class MyEmbeddableFieldsVectorIndex(EmbeddableFieldsVectorIndex):
+    querysets = [
+        MyModel.objects.all(),
+        MyOtherModel.objects.filter(name__startswith="AI: "),
+    ]
+```
+
+Once populated (with the `update_vector_indexes` management command), this can be queried just like an automatically generated index:
+
+```python
+index = MyEmbeddableFieldsVectorIndex()
+index.query("Are you suggesting that coconuts migrate?")
+```
+
+## Customising embedding splits
+
+Due to token limitations in AI models, content from indexed models is split up in to chunks, with embeddings generated separately.
+
+By default this is done by merging all `embedding_fields` together and then splitting on new paragraphs, new lines, sentences and words (getting more specific as required) until it fits within a defined split size.
+
+To customise this behaviour, either:
+
+- Override the `_get_text_splitter` method on a `VectorIndexedMixin` model, returning a class that conforms to the `TextSplitterProtocol`.
+- Override the `_get_split_content` method on a `VectorIndexedMixin` model to split your content however you want.

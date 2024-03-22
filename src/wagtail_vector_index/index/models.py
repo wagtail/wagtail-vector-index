@@ -34,9 +34,9 @@ from wagtail_vector_index.index.exceptions import IndexedTypeFromDocumentError
 This includes:
 
 - The Embedding Django model, which is used to store embeddings for model instances in the database
-- The VectorIndexedMixin, which is a mixin for Django models that lets user define which fields should be used to generate embeddings
-- The ModelVectorIndex, which is a VectorIndex that expects VectorIndexedMixin models
-- The MixinModelDocumentConverter, which is a DocumentConverter that knows how to convert a model instance using the VectorIndexedMixin protocol to and from a Document
+- The EmbeddableFieldsMixin, which is a mixin for Django models that lets user define which fields should be used to generate embeddings
+- The EmbeddableFieldsVectorIndex, which is a VectorIndex that expects EmbeddableFieldsMixin models
+- The EmbeddableFieldsDocumentConverter, which is a DocumentConverter that knows how to convert a model instance using the EmbeddableFieldsMixin protocol to and from a Document
 """
 
 
@@ -285,7 +285,7 @@ class EmbeddableFieldsDocumentConverter:
             yield self.from_document(document)
 
 
-class ModelVectorIndex(VectorIndex):
+class EmbeddableFieldsVectorIndex(VectorIndex):
     """A VectorIndex which indexes the results of querysets of EmbeddableFieldsMixin models"""
 
     querysets: ClassVar[Sequence[models.QuerySet]]
@@ -319,8 +319,8 @@ class ModelVectorIndex(VectorIndex):
         return all_documents
 
 
-class PageVectorIndex(ModelVectorIndex):
-    """A model vector indexed for use with Wagtail pages that automatically
+class PageEmbeddableFieldsVectorIndex(EmbeddableFieldsVectorIndex):
+    """A vector indexed for use with Wagtail pages that automatically
     restricts indexed models to live pages."""
 
     querysets: Sequence[PageQuerySet]
@@ -358,12 +358,12 @@ class GeneratedIndexMixin(models.Model):
         # If the user has specified a custom `vector_index_class`, use that
         if cls.vector_index_class:
             index_cls = cls.vector_index_class
-        # If the model is a Wagtail Page, use a special PageVectorIndex
+        # If the model is a Wagtail Page, use a special PageEmbeddableFieldsVectorIndex
         elif issubclass(cls, Page):
-            index_cls = PageVectorIndex
-        # Otherwise use the standard ModelVectorIndex
+            index_cls = PageEmbeddableFieldsVectorIndex
+        # Otherwise use the standard EmbeddableFieldsVectorIndex
         else:
-            index_cls = ModelVectorIndex
+            index_cls = EmbeddableFieldsVectorIndex
 
         return cast(
             type[VectorIndex],

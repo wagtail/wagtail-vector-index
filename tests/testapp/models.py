@@ -4,7 +4,7 @@ from wagtail.fields import RichTextField
 from wagtail.models import Page
 from wagtail_vector_index.index.models import (
     EmbeddingField,
-    PageVectorIndex,
+    PageEmbeddableFieldsVectorIndex,
     VectorIndexedMixin,
 )
 from wagtail_vector_index.index.registry import registry
@@ -37,5 +37,5 @@ class DifferentPage(VectorIndexedMixin, Page):
 
 
 @registry.register()
-class MultiplePageVectorIndex(PageVectorIndex):
+class MultiplePageVectorIndex(PageEmbeddableFieldsVectorIndex):
     querysets = [ExamplePage.objects.all(), DifferentPage.objects.all()]  # type: ignore
