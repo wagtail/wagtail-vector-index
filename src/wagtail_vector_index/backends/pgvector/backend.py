@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from wagtail_vector_index.backends import Backend, Index, SearchResponseDocument
-from wagtail_vector_index.base import Document
+from wagtail_vector_index.index.base import Document
 
 from .models import PgvectorEmbedding, PgvectorEmbeddingQuerySet
 from .types import DistanceMethod

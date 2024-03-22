@@ -1,6 +1,6 @@
 # Using Vector Indexes
 
-Once you've got an instance of a Vector Index, either through `self.get_vector_index()` on a `VectorIndexedMixin` model, or through your own custom index, you can run a few useful operations on the index:
+Once you've got an instance of a Vector Index, either through `self.vector_index` on a `VectorIndexedMixin` model, or through your own custom index, you can run a few useful operations on the index:
 
 ### Natural language question/answers
 
@@ -32,8 +32,6 @@ index.similar(my_model_instance)
 
 [MyPage(1), MyPage(2)]
 ```
-
-The passed model instance doesn't have to be in the same index, but it must conform to the `VectorIndexable` protocol.
 
 This works by:
 

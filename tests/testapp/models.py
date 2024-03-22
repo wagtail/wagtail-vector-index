@@ -2,11 +2,13 @@ from django.db import models
 from wagtail.admin.panels import FieldPanel
 from wagtail.fields import RichTextField
 from wagtail.models import Page
-from wagtail_vector_index.index.model import (
-    PageVectorIndex,
+from wagtail_vector_index.index.models import (
+    EmbeddableFieldsDocumentConverter,
+    EmbeddingField,
+    PageEmbeddableFieldsVectorIndex,
+    VectorIndexedMixin,
 )
 from wagtail_vector_index.index.registry import registry
-from wagtail_vector_index.models import EmbeddingField, VectorIndexedMixin
 
 
 class ExampleModel(VectorIndexedMixin, models.Model):
@@ -36,5 +38,8 @@ class DifferentPage(VectorIndexedMixin, Page):
 
 
 @registry.register()
-class MultiplePageVectorIndex(PageVectorIndex):
+class MultiplePageVectorIndex(PageEmbeddableFieldsVectorIndex):
     querysets = [ExamplePage.objects.all(), DifferentPage.objects.all()]  # type: ignore
+
+    def get_converter(self):
+        return EmbeddableFieldsDocumentConverter(Page)

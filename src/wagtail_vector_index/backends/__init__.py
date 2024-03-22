@@ -7,9 +7,10 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.utils.module_loading import import_string
 
+from wagtail_vector_index.index.registry import registry
+
 if TYPE_CHECKING:
-    from wagtail_vector_index.base import Document
-    from wagtail_vector_index.index.base import VectorIndex
+    from wagtail_vector_index.index.base import Document, VectorIndex
 
 
 ConfigClass = TypeVar("ConfigClass")
@@ -31,10 +32,7 @@ class Index:
         self.index_name = index_name
 
     def get_vector_index(self) -> "VectorIndex":
-        from wagtail_vector_index.index import get_vector_indexes
-
-        # TODO: Consider passing a vector index instance to the constructor.
-        return get_vector_indexes()[self.index_name]
+        return registry[self.index_name]()
 
     def upsert(self, *, documents: Iterable["Document"]) -> None:
         raise NotImplementedError
@@ -96,7 +94,7 @@ def get_vector_backend_config() -> Mapping:
         }
 
 
-def get_vector_backend(*, alias="default") -> Backend:
+def get_vector_backend(alias: str) -> Backend:
     backend_config = get_vector_backend_config()
 
     try:

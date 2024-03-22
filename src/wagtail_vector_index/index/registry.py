@@ -17,6 +17,9 @@ class VectorIndexRegistry:
 
         return decorator
 
+    def __getitem__(self, key: str) -> Type["VectorIndex"]:
+        return self._registry[key]
+
     def __iter__(self):
         return iter(self._registry.items())
 

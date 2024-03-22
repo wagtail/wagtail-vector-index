@@ -25,7 +25,7 @@ To index your models:
 ```python
 from django.db import models
 from wagtail.models import Page
-from wagtail_vector_index.models import VectorIndexedMixin, EmbeddingField
+from wagtail_vector_index.index.models import VectorIndexedMixin, EmbeddingField
 
 
 class MyPage(VectorIndexedMixin, Page):
@@ -34,13 +34,13 @@ class MyPage(VectorIndexedMixin, Page):
     embedding_fields = [EmbeddingField("title"), EmbeddingField("body")]
 ```
 
-A `ModelVectorIndex` will be generated for your model which can be accessed using the `get_vector_index()` classmethod, e.g.:
+An `EmbeddableFieldsVectorIndex` will be generated for your model which can be accessed using the `vector_index` class property, e.g.:
 
 ```python
-index = MyPage.get_vector_index()
+index = MyPage.vector_index
 ```
 
-If you want more control over how content is indexed, you can instead create your own indexes. See [./indexes.md](Indexes) for more details.
+If you want more control over how content is indexed, you can instead create your own indexes. See [./vector-indexes.md](Vector Indexes) for more details.
 
 Now you can index your content, see [./using-indexes](Using Indexes) for how to make these indexes work for you.
 

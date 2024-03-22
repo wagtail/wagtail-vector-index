@@ -50,8 +50,7 @@ EmbeddingConfigSettings = TypeVar(
 
 class ConfigClassProtocol(Protocol[ConfigSettings]):
     @classmethod
-    def from_settings(cls, config: ConfigSettings, **kwargs: Any) -> Self:
-        ...
+    def from_settings(cls, config: ConfigSettings, **kwargs: Any) -> Self: ...
 
 
 @dataclass(kw_only=True)
@@ -153,16 +152,14 @@ class BaseChatBackend(BaseBackend[ChatBackendConfig]):
     config_cls: ClassVar[type[BaseChatConfig]]
     config: ChatBackendConfig
 
-    def chat(self, *, user_messages: Sequence[str]) -> AIResponse:
-        ...
+    def chat(self, *, user_messages: Sequence[str]) -> AIResponse: ...
 
 
 class BaseEmbeddingBackend(BaseBackend[EmbeddingBackendConfig]):
     config_cls: ClassVar[type[BaseEmbeddingConfig]]
     config: EmbeddingBackendConfig
 
-    def embed(self, inputs: Iterable[str]) -> Iterator[list[float]]:
-        ...
+    def embed(self, inputs: Iterable[str]) -> Iterator[list[float]]: ...
 
     @property
     def embedding_output_dimensions(self) -> int:

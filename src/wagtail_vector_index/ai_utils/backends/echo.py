@@ -6,6 +6,8 @@ from typing import Any, NotRequired, Self
 
 from django.core.exceptions import ImproperlyConfigured
 
+from wagtail_vector_index.index.base import Document
+
 from .base import (
     AIResponse,
     BaseChatBackend,
@@ -85,7 +87,7 @@ class EchoEmbeddingBackend(BaseEmbeddingBackend[BaseEmbeddingConfig]):
     config_cls = BaseEmbeddingConfig
     config: BaseEmbeddingConfig
 
-    def embed(self, inputs: Iterable[str]) -> Iterator[list[float]]:
+    def embed(self, inputs: Iterable[Document]) -> Iterator[list[float]]:
         for _ in inputs:
             yield [
                 random.random() for _ in range(self.config.embedding_output_dimensions)
