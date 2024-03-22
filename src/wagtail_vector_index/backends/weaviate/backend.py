@@ -24,7 +24,7 @@ class WeaviateIndex(Index):
         with self.client.batch as batch:
             for document in documents:
                 batch.add_data_object(
-                    document.metadata, self.index_name, vector=document.vector
+                    dict(document.metadata), self.index_name, vector=document.vector
                 )
 
     def delete(self, *, document_ids: Sequence[str]) -> None:
