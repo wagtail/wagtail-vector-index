@@ -25,7 +25,7 @@ class QdrantIndex(Index):
     def upsert(self, *, documents: Iterable[Document]) -> None:
         points = [
             qdrant_models.PointStruct(
-                id=document.id,
+                id=document.embedding_pk,
                 vector=document.vector,
                 payload=document.metadata,
             )

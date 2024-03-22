@@ -1,4 +1,3 @@
-import uuid
 from collections.abc import Generator, Iterable, MutableSequence, Sequence
 from typing import (
     ClassVar,
@@ -94,7 +93,6 @@ class Embedding(models.Model):
 
     def to_document(self) -> Document:
         return Document(
-            id=uuid.uuid4(),
             vector=self.vector,
             embedding_pk=self.pk,
             metadata={

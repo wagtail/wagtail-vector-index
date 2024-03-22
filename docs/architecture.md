@@ -22,7 +22,7 @@ A `VectorIndex` uses the `Backend` configured as `default` in the Django setting
 
 ## `Document` - `index/base.py`
 
-`Document`s are a dataclass representing something that is stored in a `VectorIndex`. They have an identifier, a vector (for the embedding) and an unstructured metadata dict. This class allows us to store anything in a `VectorIndex` without needing to build indexes that hold specific types of object.
+`Document`s are a dataclass representing something that is stored in a `VectorIndex`. They have a reference to an Embedding database object, a vector (for the embedding) and an unstructured metadata dict. This class allows us to store anything in a `VectorIndex` without needing to build indexes that hold specific types of object.
 
 Whenever we are working with `VectorIndex`s, we are working with Document objects but as a user, these Documents aren't usually what we want to be working with. We would prefer to deal with our models and Pages, and let the package transparently handle converting them back and forth to Documents.
 

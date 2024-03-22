@@ -79,7 +79,7 @@ class PgvectorIndex(Index):
         ):
             embedding = pgvector_embedding.embedding
             doc = embedding.to_document()
-            yield SearchResponseDocument(id=doc.id, metadata=doc.metadata)
+            yield SearchResponseDocument(id=doc.embedding_pk, metadata=doc.metadata)
 
     def _get_queryset(self) -> PgvectorEmbeddingQuerySet:
         # objects is technically a Manager instance but we want to use the custom

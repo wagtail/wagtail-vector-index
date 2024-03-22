@@ -38,7 +38,9 @@ class NumpyIndex(Index):
             similarities, key=lambda pair: pair[0], reverse=True
         )
         for similarity in [pair[1] for pair in sorted_similarities][:limit]:
-            yield SearchResponseDocument(id=similarity.id, metadata=similarity.metadata)
+            yield SearchResponseDocument(
+                id=similarity.embedding_pk, metadata=similarity.metadata
+            )
 
 
 class NumpyBackend(Backend[BackendConfig, NumpyIndex]):

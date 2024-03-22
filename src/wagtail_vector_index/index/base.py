@@ -1,7 +1,6 @@
 from collections.abc import Generator, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import ClassVar, Protocol
-from uuid import UUID
 
 from django.conf import settings
 
@@ -20,7 +19,6 @@ class Document:
     The embedding_pk on a Document must be the PK of an Embedding model instance.
     """
 
-    id: UUID
     vector: Sequence[float]
     embedding_pk: int
     metadata: Mapping
