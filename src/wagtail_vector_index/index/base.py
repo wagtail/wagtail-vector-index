@@ -55,8 +55,6 @@ class VectorIndex:
     embedding_backend_alias: ClassVar[str] = "default"
     # The alias of the backend (vector database) to use for storing and querying the index
     vector_backend_alias: ClassVar[str] = "default"
-    # The type of object that this index contains - this is used to convert between documents and objects
-    converter_class: ClassVar[type[DocumentConverter]]
 
     def __init__(
         self,
@@ -72,7 +70,7 @@ class VectorIndex:
         raise NotImplementedError
 
     def get_converter(self) -> DocumentConverter:
-        return self.converter_class()
+        raise NotImplementedError
 
     def query(
         self, query: str, *, sources_limit: int = 5, chat_backend_alias: str = "default"

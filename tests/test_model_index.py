@@ -3,6 +3,7 @@ from factories import ExamplePageFactory
 from faker import Faker
 from testapp.models import ExamplePage
 from wagtail_vector_index.index import registry
+from wagtail_vector_index.index.models import Embedding
 
 fake = Faker()
 
@@ -39,3 +40,10 @@ class TestIndexOperationsFromModel(IndexOperations):
 class TestIndexOperationsFromRegistry(IndexOperations):
     def get_index(self):
         return registry["ExamplePageIndex"]()
+
+
+def test_rebuilding_model_index_creates_embeddings():
+    ExamplePageFactory.create_batch(10)
+    index = ExamplePage.vector_index
+    index.rebuild_index()
+    assert Embedding.objects.count() == 10

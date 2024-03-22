@@ -24,8 +24,9 @@ from wagtail_vector_index.ai_utils.text_splitting.langchain import (
 from wagtail_vector_index.ai_utils.text_splitting.naive import (
     NaiveTextSplitterCalculator,
 )
+from wagtail_vector_index.ai_utils.types import TextSplitterProtocol
 from wagtail_vector_index.index import registry
-from wagtail_vector_index.index.base import Document, DocumentConverter, VectorIndex
+from wagtail_vector_index.index.base import Document, VectorIndex
 from wagtail_vector_index.index.exceptions import IndexedTypeFromDocumentError
 
 """ Everything related to indexing Django models is in this file.
@@ -197,12 +198,10 @@ class EmbeddableFieldsDocumentConverter:
 
         text = "\n".join(splittable_content)
         important_text = "\n".join(important_content)
-        splitter = self._get_text_splitter(chunk_size=chunk_size)
+        splitter = self._get_text_splitter_class(chunk_size=chunk_size)
         return [f"{important_text}\n{text}" for text in splitter.split_text(text)]
 
-    def _get_text_splitter(
-        self, chunk_size: int
-    ) -> LangchainRecursiveCharacterTextSplitter:
+    def _get_text_splitter_class(self, chunk_size: int) -> TextSplitterProtocol:
         length_calculator = NaiveTextSplitterCalculator()
         return LangchainRecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
@@ -290,19 +289,18 @@ class ModelVectorIndex(VectorIndex):
     """A VectorIndex which indexes the results of querysets of EmbeddableFieldsMixin models"""
 
     querysets: ClassVar[Sequence[models.QuerySet]]
-    converter_class: ClassVar[type[DocumentConverter]]
 
     def _get_querysets(self) -> Sequence[models.QuerySet]:
         return self.querysets
 
-    def get_converter(self) -> DocumentConverter:
+    def get_converter(self) -> EmbeddableFieldsDocumentConverter:
         queryset_models = [qs.model for qs in self._get_querysets()]
         all_the_same = len(set(queryset_models)) == 1
         if not all_the_same:
             raise ValueError(
                 "All querysets must be of the same model to use the default converter."
             )
-        return self.converter_class(queryset_models[0])
+        return EmbeddableFieldsDocumentConverter(queryset_models[0])
 
     def get_documents(self) -> Iterable[Document]:
         querysets = self._get_querysets()
@@ -344,7 +342,6 @@ class GeneratedIndexMixin(models.Model):
     """Mixin for Django models that automatically generates registers a VectorIndex for the model"""
 
     vector_index_class: ClassVar[Optional[type[VectorIndex]]] = None
-    converter_class: ClassVar[type[DocumentConverter]]
 
     class Meta:
         abstract = True
@@ -375,7 +372,6 @@ class GeneratedIndexMixin(models.Model):
                 (index_cls,),
                 {
                     "querysets": [cls.objects.all()],
-                    "converter_class": cls.converter_class,
                 },
             ),
         )
@@ -389,10 +385,6 @@ class GeneratedIndexMixin(models.Model):
 
 class VectorIndexedMixin(EmbeddableFieldsMixin, GeneratedIndexMixin, models.Model):
     """Model mixin which adds both the embeddable fields behaviour and the automatic index behaviour to a model."""
-
-    converter_class: ClassVar[type[EmbeddableFieldsDocumentConverter]] = (
-        EmbeddableFieldsDocumentConverter
-    )
 
     class Meta:
         abstract = True

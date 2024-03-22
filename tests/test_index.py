@@ -77,7 +77,7 @@ def test_similar_returns_no_duplicates(mocker):
         yield from pages
 
     mocker.patch.object(
-        vector_index.converter_class,
+        vector_index.get_converter(),
         "bulk_from_documents",
         autospec=True,
         side_effect=gen_pages,

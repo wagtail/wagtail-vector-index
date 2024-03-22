@@ -56,5 +56,5 @@ For this, we implement specialised versions of these classes/protocols and some 
 
 ## In Summary
 
-- `VectorIndex`s are responsible for fetching all the documents to be indexed, and for the interfaces for searching those documents. They have a `converter_class` class variable which specifies which `DocumentConverter` to ues for shepherding `Document`s.
+- `VectorIndex`s are responsible for fetching all the documents to be indexed, and for the interfaces for searching those documents. They have a `get_converter` method which returns an instance ofG `DocumentConverter` to ues for shepherding `Document`s.
 - `DocumentConverter`s convert `Document`s to and from the type the user is dealing with. They might need to be specific to a certain model, or they could be written in a more generic way to convert based on metadata in the `Document`.
