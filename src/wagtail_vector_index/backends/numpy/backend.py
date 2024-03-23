@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from wagtail_vector_index.backends import Backend, Index, SearchResponseDocument
+from wagtail_vector_index.backends.base import Backend, Index
 from wagtail_vector_index.index.base import Document
 
 logger = logging.Logger(__name__)
@@ -23,7 +23,7 @@ class NumpyIndex(Index):
 
     def similarity_search(
         self, query_vector: Sequence[float], *, limit: int = 5
-    ) -> Generator[SearchResponseDocument, None, None]:
+    ) -> Generator[Document, None, None]:
         similarities = []
         vector_index = self.get_vector_index()
         for document in vector_index.get_documents():
@@ -37,10 +37,8 @@ class NumpyIndex(Index):
         sorted_similarities = sorted(
             similarities, key=lambda pair: pair[0], reverse=True
         )
-        for similarity in [pair[1] for pair in sorted_similarities][:limit]:
-            yield SearchResponseDocument(
-                id=similarity.embedding_pk, metadata=similarity.metadata
-            )
+        for document in [pair[1] for pair in sorted_similarities][:limit]:
+            yield document
 
 
 class NumpyBackend(Backend[BackendConfig, NumpyIndex]):

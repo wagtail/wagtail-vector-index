@@ -3,7 +3,7 @@ from collections.abc import Generator, Iterable, MutableSequence, Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 
-from wagtail_vector_index.backends import Backend, Index, SearchResponseDocument
+from wagtail_vector_index.backends.base import Backend, Index
 from wagtail_vector_index.index.base import Document
 
 from .models import PgvectorEmbedding, PgvectorEmbeddingQuerySet
@@ -67,7 +67,7 @@ class PgvectorIndex(Index):
 
     def similarity_search(
         self, query_vector, *, limit: int = 5
-    ) -> Generator[SearchResponseDocument, None, None]:
+    ) -> Generator[Document, None, None]:
         for pgvector_embedding in (
             self._get_queryset()
             .select_related("embedding")
@@ -78,8 +78,7 @@ class PgvectorIndex(Index):
             .iterator()
         ):
             embedding = pgvector_embedding.embedding
-            doc = embedding.to_document()
-            yield SearchResponseDocument(id=doc.embedding_pk, metadata=doc.metadata)
+            yield embedding.to_document()
 
     def _get_queryset(self) -> PgvectorEmbeddingQuerySet:
         # objects is technically a Manager instance but we want to use the custom

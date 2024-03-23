@@ -1,86 +1,16 @@
-import copy
-from collections.abc import Generator, Iterable, Mapping, Sequence
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from collections.abc import Mapping
+from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.utils.module_loading import import_string
 
-from wagtail_vector_index.index.registry import registry
-
 if TYPE_CHECKING:
-    from wagtail_vector_index.index.base import Document, VectorIndex
-
-
-ConfigClass = TypeVar("ConfigClass")
-IndexClass = TypeVar("IndexClass", bound="Index")
+    from wagtail_vector_index.backends.base import Backend
 
 
 class InvalidVectorBackendError(ImproperlyConfigured):
     pass
-
-
-@dataclass(frozen=True, eq=True)
-class SearchResponseDocument:
-    id: str | int
-    metadata: dict
-
-
-class Index:
-    def __init__(self, index_name: str, **kwargs: Any) -> None:
-        self.index_name = index_name
-
-    def get_vector_index(self) -> "VectorIndex":
-        return registry[self.index_name]()
-
-    def upsert(self, *, documents: Iterable["Document"]) -> None:
-        raise NotImplementedError
-
-    def clear(self) -> None:
-        raise NotImplementedError
-
-    def delete(self, *, document_ids: Sequence[str]) -> None:
-        raise NotImplementedError
-
-    def similarity_search(
-        self, query_vector: Sequence[float], *, limit: int = 5
-    ) -> Generator[SearchResponseDocument, None, None]:
-        raise NotImplementedError
-
-
-class Backend(Generic[ConfigClass, IndexClass]):
-    config: ConfigClass
-    config_class: type[ConfigClass]
-    index_class: type[IndexClass]
-
-    def __init__(self, config: Mapping[str, Any]) -> None:
-        try:
-            config = dict(copy.deepcopy(config))
-            self.config = self.config_class(**config)
-        except TypeError as e:
-            raise ImproperlyConfigured(
-                f"Missing configuration settings for the vector backend: {e}"
-            ) from e
-
-    def __init_subclass__(cls, **kwargs: Any) -> None:
-        try:
-            cls.config_class  # noqa: B018
-        except AttributeError as e:
-            raise AttributeError(
-                f"Vector backend {cls.__name__} must specify a `config_class` class \
-                    attribute"
-            ) from e
-        return super().__init_subclass__(**kwargs)
-
-    def get_index(self, index_name: str) -> IndexClass:
-        raise NotImplementedError
-
-    def create_index(self, index_name: str, *, vector_size: int) -> IndexClass:
-        raise NotImplementedError
-
-    def delete_index(self, index_name: str):
-        raise NotImplementedError
 
 
 def get_vector_backend_config() -> Mapping:
@@ -94,7 +24,7 @@ def get_vector_backend_config() -> Mapping:
         }
 
 
-def get_vector_backend(alias: str) -> Backend:
+def get_vector_backend(alias: str) -> "Backend":
     backend_config = get_vector_backend_config()
 
     try:
