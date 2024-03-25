@@ -24,6 +24,8 @@ A `VectorIndex` uses the `Backend` configured as `default` in the Django setting
 
 `Document`s are a dataclass representing something that is stored in a `VectorIndex`. They have a reference to an Embedding database object, a vector (for the embedding) and an unstructured metadata dict. This class allows us to store anything in a `VectorIndex` without needing to build indexes that hold specific types of object.
 
+`Document`s have an `embedding_pk` field, a reference to an `Embedding` model instance. Theis stores an embedding in the application database. This enables quickly repopulating vector backends, as well as some performance optimisations as we can get use generic foreign keys to return our related model instances.
+
 Whenever we are working with `VectorIndex`s, we are working with Document objects but as a user, these Documents aren't usually what we want to be working with. We would prefer to deal with our models and Pages, and let the package transparently handle converting them back and forth to Documents.
 
 This is where `DocumentConverter`s come in.
@@ -41,13 +43,14 @@ To go from an object to a `Document` is usually a case of:
 
 To go from a `Document` back to an object we have to rely on the `Document` `metadata`. This could be something like a primary key or UUID which will enable us to retrieve the original object from a database/filesystem, or it could be more complex metadata allowing us to reconstruct the object.
 
+A Converter is also responsible for the creation of `Embedding` model instances.
+
 ## Model-specific implementations - `index/models.py`
 
 While all of the above are intended to be generic and usable for any object type, the main use-case for `wagtail-vector-index` is to index Django models or Wagtail Pages.
 
 For this, we implement specialised versions of these classes/protocols and some utilities around them that are more likely to be consumed by developers.
 
-* `Embedding` is a Django model which stores embeddings in the application database, ignoring the presence of any specific Vector Backend. This enables quickly repopulating vector backends, as well as some performance optimisations as we can get use generic foreign keys to return our related model instances.
 * `EmbeddableFieldsMixin` is a way to let developers specify what fields of their model they want to index by adding the mixin and adding `embedding_fields` to a model. This doesn't do anything interesting by itself.
 * `EmbeddableFieldsDocumentConverter` knows how to convert anything with the `EmbeddableFieldsMixin` to a document, and when instantiated with a `base_model`, knows how to convert `Documents` back to that `base_model`.
 * `EmbeddableFieldsVectorIndex` can be subclassed with a list of `QuerySet`s of models with `EmbeddableFieldsMixin` and manages the index for them. It uses `EmbeddableFieldsDocumentConverter` to shepherd documents back and forth.
