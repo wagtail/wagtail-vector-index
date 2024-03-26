@@ -1,3 +1,4 @@
+import json
 from collections.abc import Generator, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -5,7 +6,7 @@ from typing import Any
 import weaviate
 from django.core.exceptions import ImproperlyConfigured
 
-from wagtail_vector_index.backends import Backend, Index, SearchResponseDocument
+from wagtail_vector_index.backends.base import Backend, Index
 from wagtail_vector_index.index.base import Document
 
 
@@ -23,8 +24,16 @@ class WeaviateIndex(Index):
     def upsert(self, *, documents: Iterable[Document]) -> None:
         with self.client.batch as batch:
             for document in documents:
+                # Store metadata as a JSON string because otherwise
+                # we need to explicitly request each field back in
+                # the query
                 batch.add_data_object(
-                    dict(document.metadata), self.index_name, vector=document.vector
+                    {
+                        "metadata": json.dumps(document.metadata),
+                        "embedding_pk": document.embedding_pk,
+                    },
+                    self.index_name,
+                    vector=document.vector,
                 )
 
     def delete(self, *, document_ids: Sequence[str]) -> None:
@@ -33,21 +42,27 @@ class WeaviateIndex(Index):
 
     def similarity_search(
         self, query_vector: Sequence[float], *, limit: int = 5
-    ) -> Generator[SearchResponseDocument, None, None]:
+    ) -> Generator[Document, None, None]:
         near_vector = {
             "vector": query_vector,
         }
         similar_documents = (
             self.client.query.get(
-                self.index_name, ["id", "content_type_id", "object_id", "content"]
+                self.index_name,
+                ["embedding_pk", "metadata"],
             )
-            .with_additional("distance")
+            .with_additional(["distance", "vector"])
             .with_near_vector(near_vector)
             .with_limit(limit)
             .do()
-        )["data"]["Get"][self.index_name]
-        for doc in similar_documents:
-            yield SearchResponseDocument(id=doc["id"], metadata=doc)
+        )
+        docs = similar_documents["data"]["Get"][self.index_name]
+        for doc in docs:
+            yield Document(
+                embedding_pk=doc["embedding_pk"],
+                metadata=json.loads(doc["metadata"]),
+                vector=doc["_additional"]["vector"],
+            )
 
 
 class WeaviateBackend(Backend[BackendConfig, WeaviateIndex]):

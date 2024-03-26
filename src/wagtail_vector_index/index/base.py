@@ -9,16 +9,18 @@ from wagtail_vector_index.ai_utils.backends.base import BaseEmbeddingBackend
 from wagtail_vector_index.backends import get_vector_backend
 
 
-@dataclass
+@dataclass(kw_only=True, frozen=True)
 class Document:
     """Representation of some content that is passed to vector storage backends.
 
     A document is usually a part of a model, e.g. some content split out from
     a VectorIndexedMixin model. One model instance may have multiple documents.
+
+    The embedding_pk on a Document must be the PK of an Embedding model instance.
     """
 
-    id: str
     vector: Sequence[float]
+    embedding_pk: int
     metadata: Mapping
 
 

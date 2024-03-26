@@ -5,7 +5,7 @@ from typing import Any
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qdrant_models
 
-from wagtail_vector_index.backends import Backend, Index, SearchResponseDocument
+from wagtail_vector_index.backends.base import Backend, Index
 from wagtail_vector_index.index.base import Document
 
 
@@ -25,7 +25,7 @@ class QdrantIndex(Index):
     def upsert(self, *, documents: Iterable[Document]) -> None:
         points = [
             qdrant_models.PointStruct(
-                id=document.id,
+                id=document.embedding_pk,
                 vector=document.vector,
                 payload=document.metadata,
             )
@@ -41,12 +41,14 @@ class QdrantIndex(Index):
 
     def similarity_search(
         self, query_vector: Sequence[float], *, limit: int = 5
-    ) -> Generator[SearchResponseDocument, None, None]:
+    ) -> Generator[Document, None, None]:
         similar_documents = self.client.search(
             collection_name=self.index_name, query_vector=query_vector, limit=limit
         )
         for doc in similar_documents:
-            yield SearchResponseDocument(id=doc["id"], metadata=doc["payload"])
+            yield Document(
+                embedding_pk=doc["id"], vector=doc["vector"], metadata=doc["payload"]
+            )
 
 
 class QdrantBackend(Backend[BackendConfig, QdrantIndex]):
