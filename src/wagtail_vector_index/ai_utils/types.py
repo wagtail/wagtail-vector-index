@@ -1,15 +1,23 @@
 from collections.abc import Callable, Iterator
-from typing import Any, Protocol
+from typing import Any, Protocol, TypedDict
+
+
+class ChatMessage(TypedDict):
+    """Dict contaning 'role' and 'content' keys representing a single message in
+    a chat conversation."""
+
+    role: str
+    content: str
 
 
 class AIResponse(Protocol):
-    """
-    Compatible with the llm.Response.
-    """
+    """Iterator representing a response from an AI backend"""
+
+    def __next__(self) -> str: ...
+
+    async def __anext__(self) -> str: ...
 
     def __iter__(self) -> Iterator[str]: ...
-
-    def text(self) -> str: ...
 
 
 class TextSplitterProtocol(Protocol):

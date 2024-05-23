@@ -42,6 +42,10 @@ qdrant = [
 weaviate = [
     "weaviate-client>=3.24.2",
 ]
+litellm = [
+    "litellm>=1.38.0",
+    "openai>=1.28.1"
+]
 llm = [
     "llm>=0.12",
 ]
@@ -49,6 +53,7 @@ testing = [
     "dj-database-url==2.1.0",
     "pre-commit>=3.4.0",
     "pytest>=7.4.2",
+    "pytest-asyncio>=0.23.6",
     "pytest-mock>=3.12.0",
     "pytest-django>=4.5.2",
     "wagtail-factories>=4.1.0",
@@ -90,6 +95,7 @@ exclude = [
 DJANGO_SETTINGS_MODULE = "testapp.settings"
 pythonpath = ["./", "./tests"]
 log_level = "INFO"
+asyncio_mode = "auto"
 
 [tool.ruff]
 select = ["F", "E", "C90", "I", "B", "DJ", "RUF", "TRY", "C4", "TCH005", "TCH004"]

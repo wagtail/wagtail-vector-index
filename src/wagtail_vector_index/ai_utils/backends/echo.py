@@ -8,6 +8,7 @@ from django.core.exceptions import ImproperlyConfigured
 
 from wagtail_vector_index.index.base import Document
 
+from ..types import ChatMessage
 from .base import (
     AIResponse,
     BaseChatBackend,
@@ -64,23 +65,28 @@ class EchoChatBackend(BaseChatBackend[EchoChatConfig]):
     config_cls = EchoChatConfig
     config: EchoChatConfig
 
-    def chat(self, *, user_messages: Sequence[str]) -> AIResponse:
-        def response_iterator() -> Generator[str, None, None]:
-            response = ["This", "is", "an", "echo", "backend:"]
-            for m in user_messages:
-                response.extend(m.split())
-            for word in response:
-                if (
-                    self.config.max_word_sleep_seconds is not None
-                    and self.config.max_word_sleep_seconds > 0
-                ):
-                    time.sleep(
-                        random.random()
-                        * random.randint(0, self.config.max_word_sleep_seconds)
-                    )
-                yield word
+    def response_iterator(
+        self, messages: Sequence[ChatMessage]
+    ) -> Generator[str, None, None]:
+        response = ["This", "is", "an", "echo", "backend:"]
+        for m in messages:
+            response.extend(m["content"].split())
+        for word in response:
+            if (
+                self.config.max_word_sleep_seconds is not None
+                and self.config.max_word_sleep_seconds > 0
+            ):
+                time.sleep(
+                    random.random()
+                    * random.randint(0, self.config.max_word_sleep_seconds)
+                )
+            yield word
 
-        return EchoResponse(response_iterator())
+    def chat(self, *, messages: Sequence[ChatMessage], **kwargs) -> AIResponse:
+        return EchoResponse(self.response_iterator(messages))
+
+    async def achat(self, *, messages: Sequence[ChatMessage], **kwargs) -> AIResponse:
+        return EchoResponse(self.response_iterator(messages))
 
 
 class EchoEmbeddingBackend(BaseEmbeddingBackend[BaseEmbeddingConfig]):

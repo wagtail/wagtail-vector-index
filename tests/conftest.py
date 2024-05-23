@@ -34,7 +34,7 @@ class MockResponse(AIResponse):
 class ChatMockBackend(BaseChatBackend):
     config_cls = BaseChatConfig
 
-    def chat(self, user_messages: Sequence[str]) -> AIResponse:
+    def chat(self, messages: Sequence[str]) -> AIResponse:
         return MockResponse()
 
 

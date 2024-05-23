@@ -17,6 +17,7 @@ from django.core.exceptions import ImproperlyConfigured
 from .. import embeddings, tokens
 from ..types import (
     AIResponse,
+    ChatMessage,
 )
 
 
@@ -75,7 +76,19 @@ class BaseConfig(ConfigClassProtocol[ConfigSettings]):
         )
 
     @classmethod
+    def _get_token_limit(cls, *, model_id: str) -> int:
+        """Backend-specific method for retriving the token limit for the provided model."""
+        try:
+            return tokens.get_default_token_limit(model_id=model_id)
+        except tokens.NoTokenLimitFound as e:
+            raise ImproperlyConfigured(
+                f'"TOKEN_LIMIT" is not configured for model "{model_id}".'
+            ) from e
+
+    @classmethod
     def get_token_limit(cls, *, model_id: str, custom_value: int | None) -> int:
+        """Determine a token limit either from the config, or from the backend-specific
+        method."""
         if custom_value is not None:
             try:
                 return int(custom_value)
@@ -83,12 +96,7 @@ class BaseConfig(ConfigClassProtocol[ConfigSettings]):
                 raise ImproperlyConfigured(
                     f'"TOKEN_LIMIT" is not an "int", it is a "{type(custom_value)}".'
                 ) from e
-        try:
-            return tokens.get_default_token_limit(model_id=model_id)
-        except tokens.NoTokenLimitFound as e:
-            raise ImproperlyConfigured(
-                f'"TOKEN_LIMIT" is not configured for model "{model_id}".'
-            ) from e
+        return cls._get_token_limit(model_id=model_id)
 
 
 @dataclass(kw_only=True)
@@ -117,9 +125,21 @@ class BaseEmbeddingConfig(BaseConfig[EmbeddingConfigSettings]):
         )
 
     @classmethod
+    def _get_embedding_output_dimensions(cls, *, model_id: str) -> int:
+        """Backend-specific method for retriving the embedding output dimensions for the provided model."""
+        try:
+            return embeddings.get_default_embedding_output_dimensions(model_id=model_id)
+        except embeddings.EmbeddingOutputDimensionsNotFound as e:
+            raise ImproperlyConfigured(
+                f'"EMBEDDING_OUTPUT_DIMENSIONS" is not configured for model "{model_id}".'
+            ) from e
+
+    @classmethod
     def get_embedding_output_dimensions(
         cls, *, model_id: str, custom_value: int | None
     ) -> int:
+        """Determine the embedding output dimensons either from the config, or from the backend-specific
+        method."""
         if custom_value is not None:
             try:
                 return int(custom_value)
@@ -127,12 +147,7 @@ class BaseEmbeddingConfig(BaseConfig[EmbeddingConfigSettings]):
                 raise ImproperlyConfigured(
                     f'"EMBEDDING_OUTPUT_DIMENSIONS" is not an "int", it is a "{type(custom_value)}".'
                 ) from e
-        try:
-            return embeddings.get_default_embedding_output_dimensions(model_id=model_id)
-        except embeddings.EmbeddingOutputDimensionsNotFound as e:
-            raise ImproperlyConfigured(
-                f'"EMBEDDING_OUTPUT_DIMENSIONS" is not configured for model "{model_id}".'
-            ) from e
+        return cls._get_embedding_output_dimensions(model_id=model_id)
 
 
 AnyBackendConfig = TypeVar("AnyBackendConfig", bound=BaseConfig)
@@ -152,14 +167,22 @@ class BaseChatBackend(BaseBackend[ChatBackendConfig]):
     config_cls: ClassVar[type[BaseChatConfig]]
     config: ChatBackendConfig
 
-    def chat(self, *, user_messages: Sequence[str]) -> AIResponse: ...
+    def chat(self, *, messages: Sequence[ChatMessage], **kwargs) -> AIResponse: ...
+
+    async def achat(
+        self, *, messages: Sequence[ChatMessage], **kwargs
+    ) -> AIResponse: ...
 
 
 class BaseEmbeddingBackend(BaseBackend[EmbeddingBackendConfig]):
     config_cls: ClassVar[type[BaseEmbeddingConfig]]
     config: EmbeddingBackendConfig
 
-    def embed(self, inputs: Iterable[str]) -> Iterator[list[float]]: ...
+    def embed(self, inputs: Iterable[str], **kwargs) -> Iterator[list[float]]: ...
+
+    async def aembed(
+        self, inputs: Iterable[str], **kwargs
+    ) -> Iterator[list[float]]: ...
 
     @property
     def embedding_output_dimensions(self) -> int:

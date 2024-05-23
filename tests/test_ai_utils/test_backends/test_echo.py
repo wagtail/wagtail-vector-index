@@ -87,7 +87,10 @@ def test_chat():
         ]
     )
     response = backend.chat(
-        user_messages=["Translate the following context to French.", input_text]
+        messages=[
+            {"content": "Translate the following context to French.", "role": "user"},
+            {"content": input_text, "role": "user"},
+        ]
     )
     assert (
         response.text()
@@ -109,7 +112,10 @@ def test_chat_iterator():
     )
     input_text = "At first glance, the wagtails appear to be divided into a yellow-bellied group and a white-bellied one, or one where the upper head is black and another where it is usually grey, but may be olive, yellow, or other colours. However, these are not evolutionary lineages; change of belly colour and increase of melanin have occurred independently several times in the wagtails, and the colour patterns which actually indicate relationships are more subtle."
     response = backend.chat(
-        user_messages=["Translate the following context to French.", input_text]
+        messages=[
+            {"content": "Translate the following context to French.", "role": "user"},
+            {"content": input_text, "role": "user"},
+        ]
     )
     assert list(response) == [
         "This",

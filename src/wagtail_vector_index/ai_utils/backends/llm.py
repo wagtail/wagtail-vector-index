@@ -5,7 +5,7 @@ from typing import Any, NotRequired, Self
 import llm
 from llm.models import dataclass
 
-from ..types import AIResponse
+from ..types import AIResponse, ChatMessage
 from .base import (
     BaseChatBackend,
     BaseChatConfig,
@@ -77,10 +77,13 @@ class LLMChatBackend(BaseChatBackend[LLMChatBackendConfig]):
     config: LLMChatBackendConfig
     config_cls = LLMChatBackendConfig
 
-    def chat(self, *, user_messages: Sequence[str]) -> AIResponse:
+    def chat(self, *, messages: Sequence[ChatMessage]) -> AIResponse:
         model = self._get_llm_chat_model()
-        full_prompt = os.linesep.join(user_messages)
+        full_prompt = os.linesep.join([message["content"] for message in messages])
         return model.prompt(full_prompt, **self._get_prompt_kwargs())
+
+    def achat(self, *, messages: Sequence[ChatMessage]) -> AIResponse:
+        raise NotImplementedError("Async chat is not supported by this backend.")
 
     def _get_prompt_kwargs(self, **prompt_kwargs: Any) -> Mapping[str, Any]:
         prompt_kwargs = {}
@@ -110,3 +113,6 @@ class LLMEmbeddingBackend(BaseEmbeddingBackend[LLMEmbeddingBackendConfig]):
     def embed(self, inputs: Iterable[str]) -> Iterator[list[float]]:
         model = self._get_llm_embedding_model()
         yield from model.embed_multi(inputs)
+
+    async def aembed(self, inputs: Iterable[str]) -> Iterator[list[float]]:
+        raise NotImplementedError("Async embed is not supported by this backend.")

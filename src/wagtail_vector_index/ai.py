@@ -20,7 +20,7 @@ def get_chat_backends_settings() -> Mapping[str, BackendSettingsDict]:
         ) from e
     return {
         "default": {
-            "CLASS": "ai_utils.ai.llm.LLMChatBackend",
+            "CLASS": "ai_utils.ai.litellm.LiteLLMChatBackend",
             "CONFIG": {
                 "MODEL_ID": "gpt-3.5-turbo",
             },
@@ -37,7 +37,7 @@ def get_embedding_backends_settings() -> Mapping[str, EmbeddingBackendSettingsDi
         ) from e
     return {
         "default": {
-            "CLASS": "ai_utils.ai.llm.LLMEmbeddingBackend",
+            "CLASS": "ai_utils.ai.ltiellm.LiteLLMEmbeddingBackend",
             "CONFIG": {
                 "MODEL_ID": "text-embedding-ada-002",
             },

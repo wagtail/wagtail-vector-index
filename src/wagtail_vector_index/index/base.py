@@ -94,13 +94,13 @@ class VectorIndex:
             getattr(settings, "WAGTAIL_VECTOR_INDEX_QUERY_PROMPT", None)
             or "You are a helpful assistant. Use the following context to answer the question. Don't mention the context in your answer."
         )
-        user_messages = [
-            prompt,
-            merged_context,
-            query,
+        messages = [
+            {"content": prompt, "role": "system"},
+            {"content": merged_context, "role": "system"},
+            {"content": query, "role": "user"},
         ]
         chat_backend = get_chat_backend(chat_backend_alias)
-        response = chat_backend.chat(user_messages=user_messages)
+        response = chat_backend.chat(messages=messages)
         return QueryResponse(response=response.text(), sources=sources)
 
     def similar(self, object, *, include_self: bool = False, limit: int = 5) -> list:
