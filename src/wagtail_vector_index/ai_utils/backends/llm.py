@@ -77,13 +77,22 @@ class LLMChatBackend(BaseChatBackend[LLMChatBackendConfig]):
     config: LLMChatBackendConfig
     config_cls = LLMChatBackendConfig
 
-    def chat(self, *, messages: Sequence[ChatMessage]) -> AIResponse:
+    def chat(
+        self, *, messages: Sequence[ChatMessage], stream: bool = False, **kwargs
+    ) -> AIResponse:
+        if stream:
+            raise NotImplementedError(
+                "Streaming chat is not currently supported by this backend."
+            )
+
         model = self._get_llm_chat_model()
         full_prompt = os.linesep.join([message["content"] for message in messages])
         text_response = model.prompt(full_prompt, **self._get_prompt_kwargs()).text()
         return AIResponse(choices=[text_response])
 
-    def achat(self, *, messages: Sequence[ChatMessage]) -> AIResponse:
+    def achat(
+        self, *, messages: Sequence[ChatMessage], stream: bool = False, **kwargs
+    ) -> AIResponse:
         raise NotImplementedError("Async chat is not supported by this backend.")
 
     def _get_prompt_kwargs(self, **prompt_kwargs: Any) -> Mapping[str, Any]:
