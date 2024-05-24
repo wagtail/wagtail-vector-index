@@ -2,8 +2,9 @@
 
 LLM is an alternative supported backend provider which uses the [`llm` library](https://github.com/simonw/llm) to enable communication with multiple AI providers.
 
-## Chat Backend
+To start using this backend, the `llm` package must be installed. This can be done by either adding `llm` to your requirements manually, or installing `wagtail-vector-index[llm]`.
 
+## Chat Backend
 
 ```python
 WAGTAIL_VECTOR_INDEX = {
