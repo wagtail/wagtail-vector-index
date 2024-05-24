@@ -1,61 +1,24 @@
-# AI Backends
+# LLM
 
-Wagtail Vector Index can be configured to use different backends to support different AI services.
+LLM is an alternative supported backend provider which uses the [`llm` library](https://github.com/simonw/llm) to enable communication with multiple AI providers.
 
-There are two types of backends available for customisation:
+## Chat Backend
 
--   Embedding Backends - used to generate vector representations of text
--   Chat Backends - used to generate 'chat' responses from queries
-
-Backends and their associated settings can be customised using the `WAGTAIL_VECTOR_INDEX` setting in your Django project settings file:
 
 ```python
 WAGTAIL_VECTOR_INDEX = {
     "CHAT_BACKENDS": {
         "default": {
-            "CLASS": "wagtail_vector_index.ai_utils.backends.litellm.LiteLLMChatBackend",
+            "CLASS": "wagtail_vector_index.ai_utils.backends.llm.LLMChatBackend",
             "CONFIG": {
-                "MODEL_ID": "gpt-3.5-turbo",
-            },
-        },
-    },
-    "EMBEDDING_BACKENDS": {
-        "default": {
-            "CLASS": "wagtail_vector_index.ai_utils.backends.litellm.LiteLLMEmbeddingBackend",
-            "CONFIG": {
-                "MODEL_ID": "ada-002",
-            },
-        }
-    },
-}
-```
-
-## Chat Backends
-
-### `LiteLLMChatBackend` (default)
-
-This backend uses the [LiteLLM library](https://github.com/BerriAI/litellm) which enables support for multiple AI services and supports async/streaming APIs.
-
-By default this backend will use the `gpt-3.5-turbo` model from OpenAI. This can be customised in your Django settings:
-
-```python
-WAGTAIL_VECTOR_INDEX = {
-    "CHAT_BACKENDS": {
-        "default": {
-            "CLASS": "wagtail_vector_index.ai_utils.backends.litellm.LiteLLMChatBackend",
-            "CONFIG": {
-                "MODEL_ID": "gpt-4",
+                "MODEL_ID": "gpt-4o",
             },
         },
     },
 }
 ```
 
-### `LLMChatBackend`
-
-This backend uses the ["LLM" library](https://llm.datasette.io/en/stable/) which offers support for many AI services through plugins.
-
-By default, it is configured to use OpenAI's `gpt-3.5-turbo` model.
+If `MODEL_ID` is omitted, OpenAI's `gpt-3.5-turbo` will be used by default.
 
 ### Using other models
 
@@ -65,7 +28,7 @@ You can use the command line interface to see the "LLM" library's models install
 llm models
 ```
 
-Then you can swap `MODEL_ID` in the configuration to use a different model. For example, to use GPT-4:
+Specify `MODEL_ID` in the configuration to use a different model. For example, to use GPT-4:
 
 ```python
 WAGTAIL_VECTOR_INDEX = {
@@ -116,28 +79,7 @@ WAGTAIL_VECTOR_INDEX = {
 }
 ```
 
-## Embedding Backends
-
-### `LiteLLMEmbeddingBackend` (default)
-
-This backend uses the [LiteLLM library](https://github.com/BerriAI/litellm) which enables support for multiple AI services and supports async/streaming APIs.
-
-By default this backend will use the `text-embedding-ada-002` model from OpenAI. This can be customised in your Django settings:
-
-```python
-WAGTAIL_VECTOR_INDEX = {
-    "EMBEDDING_BACKENDS": {
-        "default": {
-            "CLASS": "wagtail_vector_index.ai_utils.backends.litellm.LiteLLMEmbeddingBackend",
-            "CONFIG": {
-                "MODEL_ID": "vertex_ai/textembedding-gecko",
-            },
-        },
-    },
-}
-```
-
-### `LLMEmbeddingBackend`
+## Embedding Backend
 
 This backend uses the ["LLM" library](https://llm.datasette.io/en/stable/) which offers support for many AI services through plugins.
 
