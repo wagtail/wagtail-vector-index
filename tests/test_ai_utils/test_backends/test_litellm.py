@@ -222,4 +222,4 @@ def test_litellm_embed(make_embedding_backend, mocker):
         "And chirrupt up his wings to dry upon the garden rail.",
     ]
     list(backend.embed(input_text))
-    embed_mock.assert_called_once_with(inputs=input_text, model=backend.config.model_id)
+    embed_mock.assert_called_once_with(input=input_text, model=backend.config.model_id)
