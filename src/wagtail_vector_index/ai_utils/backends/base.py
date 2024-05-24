@@ -167,6 +167,11 @@ class BaseBackend(Generic[AnyBackendConfig]):
 
 
 class BaseChatBackend(BaseBackend[ChatBackendConfig]):
+    """Base chat backend providing interface with `chat` and `achat` methods.
+
+    These both return either an `AIResponse` or an `AIStreamingResponse` depending on the `stream` parameter.
+    """
+
     config_cls: ClassVar[type[BaseChatConfig]]
     config: ChatBackendConfig
 
@@ -208,6 +213,8 @@ class BaseChatBackend(BaseBackend[ChatBackendConfig]):
 
 
 class BaseEmbeddingBackend(BaseBackend[EmbeddingBackendConfig]):
+    """Base embedding backend providing interface with `embed` and async `aembed` methods."""
+
     config_cls: ClassVar[type[BaseEmbeddingConfig]]
     config: EmbeddingBackendConfig
 
