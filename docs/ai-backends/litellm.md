@@ -6,7 +6,7 @@ LiteLLM is the default backend provider, making use of the [LiteLLM library](htt
 
 The LiteLLM chat backend is enabled by default, using OpenAI's `gpt-3.5-turbo` model. Adding an `OPENAI_API_KEY` to your environment is enough to get started using this backend, however the behaviour of this backend can be customised in your Django settings.
 
-Tu use a specific model, specify the `MODEL_ID` as below. The names of supported models can be found in the [LiteLLM documentation](https://docs.litellm.ai/docs/providers).
+To use a specific model, specify the `MODEL_ID` as below. The names of supported models can be found in the [LiteLLM documentation](https://docs.litellm.ai/docs/providers).
 
 ```python
 WAGTAIL_VECTOR_INDEX = {
@@ -43,7 +43,7 @@ WAGTAIL_VECTOR_INDEX = {
 
 The LiteLLM embedding backend is enabled by default using OpenAI's `ada-002` embedding model. Adding an `OPENAI_API_KEY` to your environment is enough to get started using this backend, however the behaviour of this backend can be customised in your Django settings.
 
-Tu use a specific model, specify the `MODEL_ID` as below. The names of supported models can be found in the [LiteLLM documentation](https://docs.litellm.ai/docs/embedding/supported_embedding).
+To a specific model, specify the `MODEL_ID` as below. The names of supported models can be found in the [LiteLLM documentation](https://docs.litellm.ai/docs/embedding/supported_embedding).
 
 ```python
 WAGTAIL_VECTOR_INDEX = {
