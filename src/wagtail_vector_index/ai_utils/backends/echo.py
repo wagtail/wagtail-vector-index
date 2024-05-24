@@ -31,7 +31,7 @@ class EchoStreamingResponse(AIResponse):
         return self
 
     def __next__(self) -> AIResponseStreamingPart:
-        return {"index": 1, "content": next(self.response_iterator)}
+        return {"index": 0, "content": next(self.response_iterator)}
 
 
 @dataclass(kw_only=True)
