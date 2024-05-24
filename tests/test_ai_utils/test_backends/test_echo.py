@@ -93,12 +93,12 @@ def test_chat():
         ]
     )
     assert (
-        response.text()
+        response.choices[0]
         == f"This is an echo backend: Translate the following context to French. {input_text}"
     )
 
 
-def test_chat_iterator():
+def test_streaming_chat():
     backend = get_chat_backend(
         backend_dict={
             "CLASS": "wagtail_vector_index.ai_utils.backends.echo.EchoChatBackend",
@@ -115,9 +115,10 @@ def test_chat_iterator():
         messages=[
             {"content": "Translate the following context to French.", "role": "user"},
             {"content": input_text, "role": "user"},
-        ]
+        ],
+        stream=True,
     )
-    assert list(response) == [
+    assert [part["content"] for part in response] == [
         "This",
         "is",
         "an",

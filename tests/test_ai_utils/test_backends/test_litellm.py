@@ -7,10 +7,11 @@ from wagtail_vector_index.ai_utils.backends import (
     get_chat_backend,
     get_embedding_backend,
 )
+from wagtail_vector_index.ai_utils.backends.litellm import LiteLLMEmbeddingBackend
 from wagtail_vector_index.ai_utils.types import ChatMessage
 
 try:
-    import litellm  # noqa: F401
+    import litellm
 except ImportError:
     litellm_installed = False
 else:
@@ -58,7 +59,9 @@ def make_chat_backend():
 
 @pytest.fixture
 def make_embedding_backend():
-    def _make_embedding_backend(default_parameters: dict[str, str] | None = None):
+    def _make_embedding_backend(
+        default_parameters: dict[str, str] | None = None,
+    ) -> LiteLLMEmbeddingBackend:
         return get_embedding_backend(
             backend_dict={
                 "CLASS": "wagtail_vector_index.ai_utils.backends.litellm.LiteLLMEmbeddingBackend",
@@ -149,7 +152,7 @@ def test_litellm_chat(make_chat_backend):
         {"content": message, "role": "user"} for message in input_text
     ]
     response = backend.chat(messages=messages, mock_response=response_text)
-    assert next(response) == response_text
+    assert response.choices[0] == response_text
 
 
 @if_litellm_installed
@@ -161,7 +164,7 @@ async def test_litellm_async_chat(make_chat_backend):
         {"content": message, "role": "user"} for message in input_text
     ]
     response = await backend.achat(messages=messages, mock_response=response_text)
-    assert next(response) == response_text
+    assert response.choices[0] == response_text
 
 
 ###############################################################################
@@ -201,8 +204,16 @@ def test_litellm_custom_embedding_default_parameters(make_embedding_backend):
 @if_litellm_installed
 def test_litellm_embed(make_embedding_backend, mocker):
     backend = make_embedding_backend()
+    fake_embedding_response = litellm.EmbeddingResponse(
+        data=[
+            {"embedding": [1.0, 2.0, 3.0]},
+            {"embedding": [4.0, 5.0, 6.0]},
+            {"embedding": [7.0, 8.0, 9.0]},
+        ]
+    )
     embed_mock = mocker.patch(
-        "wagtail_vector_index.ai_utils.backends.litellm.litellm.embedding"
+        "wagtail_vector_index.ai_utils.backends.litellm.litellm.embedding",
+        return_value=fake_embedding_response,
     )
     input_text = [
         "Little trotty wagtail, he waddled in the mud,",

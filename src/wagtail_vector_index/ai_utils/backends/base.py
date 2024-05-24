@@ -4,12 +4,14 @@ from typing import (
     Any,
     ClassVar,
     Generic,
+    Literal,
     NotRequired,
     Protocol,
     Required,
     Self,
     TypedDict,
     TypeVar,
+    overload,
 )
 
 from django.core.exceptions import ImproperlyConfigured
@@ -17,6 +19,7 @@ from django.core.exceptions import ImproperlyConfigured
 from .. import embeddings, tokens
 from ..types import (
     AIResponse,
+    AIStreamingResponse,
     ChatMessage,
 )
 
@@ -167,11 +170,41 @@ class BaseChatBackend(BaseBackend[ChatBackendConfig]):
     config_cls: ClassVar[type[BaseChatConfig]]
     config: ChatBackendConfig
 
-    def chat(self, *, messages: Sequence[ChatMessage], **kwargs) -> AIResponse: ...
+    @overload
+    def chat(
+        self, *, messages: Sequence[ChatMessage], stream: Literal[True], **kwargs
+    ) -> AIStreamingResponse: ...
+
+    @overload
+    def chat(
+        self,
+        *,
+        messages: Sequence[ChatMessage],
+        stream: Literal[False] = False,
+        **kwargs,
+    ) -> AIResponse: ...
+
+    def chat(
+        self, *, messages: Sequence[ChatMessage], stream: bool = False, **kwargs
+    ) -> AIResponse | AIStreamingResponse: ...
+
+    @overload
+    async def achat(
+        self, *, messages: Sequence[ChatMessage], stream: Literal[True], **kwargs
+    ) -> AIStreamingResponse: ...
+
+    @overload
+    async def achat(
+        self,
+        *,
+        messages: Sequence[ChatMessage],
+        stream: Literal[False] = False,
+        **kwargs,
+    ) -> AIResponse: ...
 
     async def achat(
-        self, *, messages: Sequence[ChatMessage], **kwargs
-    ) -> AIResponse: ...
+        self, *, messages: Sequence[ChatMessage], stream: bool = False, **kwargs
+    ) -> AIResponse | AIStreamingResponse: ...
 
 
 class BaseEmbeddingBackend(BaseBackend[EmbeddingBackendConfig]):

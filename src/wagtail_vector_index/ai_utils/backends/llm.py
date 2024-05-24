@@ -80,7 +80,8 @@ class LLMChatBackend(BaseChatBackend[LLMChatBackendConfig]):
     def chat(self, *, messages: Sequence[ChatMessage]) -> AIResponse:
         model = self._get_llm_chat_model()
         full_prompt = os.linesep.join([message["content"] for message in messages])
-        return model.prompt(full_prompt, **self._get_prompt_kwargs())
+        text_response = model.prompt(full_prompt, **self._get_prompt_kwargs()).text()
+        return AIResponse(choices=[text_response])
 
     def achat(self, *, messages: Sequence[ChatMessage]) -> AIResponse:
         raise NotImplementedError("Async chat is not supported by this backend.")

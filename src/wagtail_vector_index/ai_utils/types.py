@@ -1,4 +1,4 @@
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from typing import Any, Protocol, TypedDict
 
 
@@ -10,14 +10,29 @@ class ChatMessage(TypedDict):
     content: str
 
 
-class AIResponse(Protocol):
-    """Iterator representing a response from an AI backend"""
+class AIResponseStreamingPart(TypedDict):
+    """When the AI backend streams a response, it may return multiple 'choices'
+    in one stream. The chunks of the response may come in any order, so this structure
+    allows the consumer to reconstruct each separate stream using the choice 'index'."""
 
-    def __next__(self) -> str: ...
+    index: int
+    content: str
 
-    async def __anext__(self) -> str: ...
 
-    def __iter__(self) -> Iterator[str]: ...
+class AIStreamingResponse:
+    """Iterator protocol representing a streaming response from an AI backend."""
+
+    def __iter__(self):
+        return self
+
+    def __next__(self) -> AIResponseStreamingPart: ...
+
+
+class AIResponse:
+    """Representation of a non-streaming response from an AI backend."""
+
+    def __init__(self, choices: list[str]) -> None:
+        self.choices = choices
 
 
 class TextSplitterProtocol(Protocol):

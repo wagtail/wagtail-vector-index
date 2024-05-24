@@ -101,7 +101,7 @@ class VectorIndex:
         ]
         chat_backend = get_chat_backend(chat_backend_alias)
         response = chat_backend.chat(messages=messages)
-        return QueryResponse(response=response.text(), sources=sources)
+        return QueryResponse(response=response.choices[0], sources=sources)
 
     def similar(self, object, *, include_self: bool = False, limit: int = 5) -> list:
         """Find similar objects to the given object"""

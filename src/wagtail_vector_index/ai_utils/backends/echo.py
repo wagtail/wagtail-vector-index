@@ -8,9 +8,13 @@ from django.core.exceptions import ImproperlyConfigured
 
 from wagtail_vector_index.index.base import Document
 
-from ..types import ChatMessage
-from .base import (
+from ..types import (
     AIResponse,
+    AIResponseStreamingPart,
+    AIStreamingResponse,
+    ChatMessage,
+)
+from .base import (
     BaseChatBackend,
     BaseChatConfig,
     BaseChatConfigSettingsDict,
@@ -19,21 +23,15 @@ from .base import (
 )
 
 
-class EchoResponse(AIResponse):
-    _text: str | None = None
-    response_iterator: Iterator[str]
-
+class EchoStreamingResponse(AIResponse):
     def __init__(self, response_iterator: Iterator[str]) -> None:
         self.response_iterator = response_iterator
 
-    def __iter__(self) -> Iterator[str]:
-        return self.response_iterator
+    def __iter__(self) -> Iterator[AIResponseStreamingPart]:
+        return self
 
-    def text(self) -> str:
-        if self._text is not None:
-            return self._text
-        self._text = " ".join(self.response_iterator)
-        return self._text
+    def __next__(self) -> AIResponseStreamingPart:
+        return {"index": 1, "content": next(self.response_iterator)}
 
 
 @dataclass(kw_only=True)
@@ -65,12 +63,13 @@ class EchoChatBackend(BaseChatBackend[EchoChatConfig]):
     config_cls = EchoChatConfig
     config: EchoChatConfig
 
-    def response_iterator(
-        self, messages: Sequence[ChatMessage]
-    ) -> Generator[str, None, None]:
+    def build_response(self, messages: Sequence[ChatMessage]) -> Sequence[str]:
         response = ["This", "is", "an", "echo", "backend:"]
         for m in messages:
             response.extend(m["content"].split())
+        return response
+
+    def streaming_iterator(self, response: Sequence[str]) -> Generator[str, None, None]:
         for word in response:
             if (
                 self.config.max_word_sleep_seconds is not None
@@ -82,11 +81,18 @@ class EchoChatBackend(BaseChatBackend[EchoChatConfig]):
                 )
             yield word
 
-    def chat(self, *, messages: Sequence[ChatMessage], **kwargs) -> AIResponse:
-        return EchoResponse(self.response_iterator(messages))
+    def chat(
+        self, *, messages: Sequence[ChatMessage], stream: bool = False, **kwargs
+    ) -> AIResponse | AIStreamingResponse:
+        response = self.build_response(messages)
+        if stream:
+            return EchoStreamingResponse(self.streaming_iterator(response))
+        return AIResponse(choices=[" ".join(response)])
 
-    async def achat(self, *, messages: Sequence[ChatMessage], **kwargs) -> AIResponse:
-        return EchoResponse(self.response_iterator(messages))
+    async def achat(
+        self, *, messages: Sequence[ChatMessage], stream: bool = False, **kwargs
+    ) -> AIResponse | AIStreamingResponse:
+        return self.chat(messages=messages, stream=stream, **kwargs)
 
 
 class EchoEmbeddingBackend(BaseEmbeddingBackend[BaseEmbeddingConfig]):
@@ -98,3 +104,6 @@ class EchoEmbeddingBackend(BaseEmbeddingBackend[BaseEmbeddingConfig]):
             yield [
                 random.random() for _ in range(self.config.embedding_output_dimensions)
             ]
+
+    async def aembed(self, inputs: Iterable[Document]) -> Iterator[list[float]]:
+        return self.embed(inputs=inputs)

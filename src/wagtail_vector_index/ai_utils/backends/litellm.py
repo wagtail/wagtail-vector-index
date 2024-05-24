@@ -1,11 +1,16 @@
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, List, NotRequired, Self, cast
+from typing import Any, NotRequired, Self
 
 import litellm
 from django.core.exceptions import ImproperlyConfigured
 
-from ..types import AIResponse, ChatMessage
+from ..types import (
+    AIResponse,
+    AIResponseStreamingPart,
+    AIStreamingResponse,
+    ChatMessage,
+)
 from .base import (
     BaseChatBackend,
     BaseChatConfig,
@@ -32,53 +37,37 @@ class LiteLLMEmbeddingSettingsDict(
 
 
 def build_ai_response(response):
+    """Convert a LiteLLM response to the appropriate AIResponse class"""
+
     if type(response) == litellm.CustomStreamWrapper:
         return LiteLLMStreamingAIResponse(response)
-    return LiteLLMAIResponse(response)
+
+    return AIResponse(
+        choices=[choice["message"]["content"] for choice in response.choices]
+    )
 
 
-class LiteLLMAIResponse(AIResponse):
-    def __init__(self, response: litellm.ModelResponse) -> None:
-        self.response = response
-        self.choices = cast(litellm.Choices, response.choices)
-        self.consumed = False
+class LiteLLMStreamingAIResponse(AIStreamingResponse):
+    """A wrapper around a litellm.CustomStreamWrapper to make it compatible with the AIStreamingResponse interface."""
 
-    def __iter__(self) -> Iterator[str]:
-        return self
-
-    def __next__(self):
-        if not self.consumed:
-            self.consumed = True
-            return self.choices[0].message.content
-        raise StopIteration
-
-    async def __anext__(self) -> str:
-        if not self.consumed:
-            self.consumed = True
-            return self.choices[0].message.content
-        raise StopAsyncIteration
-
-
-class LiteLLMStreamingAIResponse(AIResponse):
-    def __init__(self, response: litellm.CustomStreamWrapper) -> None:
-        self.response = response
+    def __init__(self, stream_wrapper: litellm.CustomStreamWrapper) -> None:
+        self.stream_wrapper = stream_wrapper
 
     def __iter__(self):
         return self
 
-    def __next__(self) -> str:
-        next = self.response.__next__()
-        if next and next.choices:
-            choices = cast(List[litellm.utils.StreamingChoices], next.choices)
-            return choices[0].delta.content or ""
-        raise StopIteration
+    def __next__(self) -> AIResponseStreamingPart:
+        next_response = next(self.stream_wrapper)
+        index = next_response.choices[0].index
+        choice = next_response.choices[0]
+        assert isinstance(choice, litellm.utils.StreamingChoices)
+        content = choice.delta.content
+        assert isinstance(content, str)
 
-    async def __anext__(self) -> str:
-        next = await self.response.__anext__()
-        if next and next.choices:
-            choices = cast(List[litellm.utils.StreamingChoices], next.choices)
-            return choices[0].delta.content or ""
-        raise StopIteration
+        return {
+            "index": index,
+            "content": content,
+        }
 
 
 @dataclass(kw_only=True)
@@ -136,7 +125,7 @@ class LiteLLMChatBackend(BaseChatBackend[LiteLLMChatBackendConfig]):
 
     def chat(
         self, *, messages: Sequence[ChatMessage], stream: bool = False, **kwargs
-    ) -> AIResponse:
+    ) -> AIResponse | AIStreamingResponse:
         parameters = {**self.config.default_parameters, **kwargs}
         response = litellm.completion(
             model=self.config.model_id,
@@ -148,7 +137,7 @@ class LiteLLMChatBackend(BaseChatBackend[LiteLLMChatBackendConfig]):
 
     async def achat(
         self, *, messages: Sequence[ChatMessage], stream: bool = False, **kwargs
-    ) -> AIResponse:
+    ) -> AIResponse | AIStreamingResponse:
         parameters = {**self.config.default_parameters, **kwargs}
         response = await litellm.acompletion(
             model=self.config.model_id,
@@ -167,6 +156,8 @@ class LiteLLMEmbeddingBackend(BaseEmbeddingBackend[LiteLLMEmbeddingBackendConfig
         response = litellm.embedding(
             model=self.config.model_id, inputs=inputs, **kwargs
         )
+        # LiteLLM *should* return an EmbeddingResponse
+        assert isinstance(response, litellm.EmbeddingResponse)
         yield from [data["embedding"] for data in response["data"]]
 
     async def aembed(self, inputs: Iterable[str], **kwargs) -> list[float]:
