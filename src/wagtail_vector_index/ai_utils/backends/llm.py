@@ -90,11 +90,6 @@ class LLMChatBackend(BaseChatBackend[LLMChatBackendConfig]):
         text_response = model.prompt(full_prompt, **self._get_prompt_kwargs()).text()
         return AIResponse(choices=[text_response])
 
-    def achat(
-        self, *, messages: Sequence[ChatMessage], stream: bool = False, **kwargs
-    ) -> AIResponse:
-        raise NotImplementedError("Async chat is not supported by this backend.")
-
     def _get_prompt_kwargs(self, **prompt_kwargs: Any) -> Mapping[str, Any]:
         prompt_kwargs = {}
         if self.config.prompt_kwargs is not None:
@@ -123,6 +118,3 @@ class LLMEmbeddingBackend(BaseEmbeddingBackend[LLMEmbeddingBackendConfig]):
     def embed(self, inputs: Iterable[str]) -> Iterator[list[float]]:
         model = self._get_llm_embedding_model()
         yield from model.embed_multi(inputs)
-
-    async def aembed(self, inputs: Iterable[str]) -> Iterator[list[float]]:
-        raise NotImplementedError("Async embed is not supported by this backend.")

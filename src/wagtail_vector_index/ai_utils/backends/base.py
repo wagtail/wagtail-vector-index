@@ -209,7 +209,8 @@ class BaseChatBackend(BaseBackend[ChatBackendConfig]):
 
     async def achat(
         self, *, messages: Sequence[ChatMessage], stream: bool = False, **kwargs
-    ) -> AIResponse | AIStreamingResponse: ...
+    ) -> AIResponse | AIStreamingResponse:
+        raise NotImplementedError("Async chat is not supported by this backend.")
 
 
 class BaseEmbeddingBackend(BaseBackend[EmbeddingBackendConfig]):
@@ -220,9 +221,8 @@ class BaseEmbeddingBackend(BaseBackend[EmbeddingBackendConfig]):
 
     def embed(self, inputs: Iterable[str], **kwargs) -> Iterator[list[float]]: ...
 
-    async def aembed(
-        self, inputs: Iterable[str], **kwargs
-    ) -> Iterator[list[float]]: ...
+    async def aembed(self, inputs: Iterable[str]) -> Iterator[list[float]]:
+        raise NotImplementedError("Async embed is not supported by this backend.")
 
     @property
     def embedding_output_dimensions(self) -> int:
