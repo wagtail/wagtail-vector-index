@@ -36,7 +36,7 @@ jobs:
       - uses: pre-commit/action@v3.0.1
       - name: Install dependencies
         run: |
-          python -m pip install -e .'[testing,llm,numpy,pgvector,qdrant,weaviate]'
+          python -m pip install -e .'[testing,llm,litellm,numpy,pgvector,qdrant,weaviate]'
       - uses: jakebailey/pyright-action@v2
         with:
           version: 1.1.345
