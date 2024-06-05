@@ -1,3 +1,7 @@
+"""This module contains 'Echo' backends for chat and embedding, which echo back the input.
+They are intended for testing and development purposes and are not suitable for production use."
+"""
+
 import random
 import time
 from collections.abc import Generator, Iterable, Iterator, Sequence
