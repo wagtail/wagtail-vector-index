@@ -3,8 +3,8 @@ from collections.abc import Generator, Iterable, MutableSequence, Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 
-from wagtail_vector_index.backends.base import Backend, Index
-from wagtail_vector_index.index.base import Document
+from wagtail_vector_index.backends.base import Backend
+from wagtail_vector_index.index.base import Document, VectorIndex
 
 from .models import PgvectorEmbedding, PgvectorEmbeddingQuerySet
 from .types import DistanceMethod
@@ -12,7 +12,7 @@ from .types import DistanceMethod
 logger = logging.Logger(__name__)
 
 __all__ = [
-    "PgvectorIndex",
+    "PgvectorVectorIndex",
     "PgvectorBackend",
     "PgvectorBackendConfig",
 ]
@@ -26,7 +26,7 @@ class PgvectorBackendConfig:
     distance_method: DistanceMethod = DistanceMethod.COSINE
 
 
-class PgvectorIndex(Index):
+class PgectorIndexMixin:
     upsert_batch_size: int
     bulk_create_batch_size: int
     bulk_create_ignore_conflicts: bool
@@ -41,7 +41,8 @@ class PgvectorIndex(Index):
         distance_method: DistanceMethod | str,
         **kwargs: Any,
     ) -> None:
-        super().__init__(index_name, **kwargs)
+        super().__init__(**kwargs)
+        self.index_name = index_name
         self.upsert_batch_size = upsert_batch_size
         self.bulk_create_batch_size = bulk_create_batch_size
         self.bulk_create_ignore_conflicts = bulk_create_ignore_conflicts
@@ -102,11 +103,16 @@ class PgvectorIndex(Index):
         )
 
 
-class PgvectorBackend(Backend[PgvectorBackendConfig, PgvectorIndex]):
-    config_class = PgvectorBackendConfig
+class PgvectorVectorIndex(PgectorIndexMixin, VectorIndex):
+    pass
 
-    def get_index(self, index_name: str) -> PgvectorIndex:
-        return PgvectorIndex(
+
+class PgvectorBackend(Backend[PgvectorBackendConfig, PgvectorVectorIndex]):
+    config_class = PgvectorBackendConfig
+    index_class = PgvectorVectorIndex
+
+    def get_index(self, index_name: str) -> PgvectorVectorIndex:
+        return PgvectorVectorIndex(
             index_name,
             upsert_batch_size=self.config.upsert_batch_size,
             bulk_create_batch_size=self.config.bulk_create_batch_size,
@@ -114,7 +120,7 @@ class PgvectorBackend(Backend[PgvectorBackendConfig, PgvectorIndex]):
             distance_method=self.config.distance_method,
         )
 
-    def create_index(self, index_name: str, *, vector_size: int) -> PgvectorIndex:
+    def create_index(self, index_name: str, *, vector_size: int) -> PgvectorVectorIndex:
         return self.get_index(index_name)
 
     def delete_index(self, index_name: str) -> None:

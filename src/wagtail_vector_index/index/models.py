@@ -25,6 +25,7 @@ from wagtail_vector_index.ai_utils.text_splitting.naive import (
     NaiveTextSplitterCalculator,
 )
 from wagtail_vector_index.ai_utils.types import TextSplitterProtocol
+from wagtail_vector_index.backends import get_vector_backend
 from wagtail_vector_index.index import registry
 from wagtail_vector_index.index.base import Document, VectorIndex
 from wagtail_vector_index.index.exceptions import IndexedTypeFromDocumentError
@@ -285,8 +286,8 @@ class EmbeddableFieldsDocumentConverter:
             yield self.from_document(document)
 
 
-class EmbeddableFieldsVectorIndex(VectorIndex):
-    """A VectorIndex which indexes the results of querysets of EmbeddableFieldsMixin models"""
+class EmbeddableFieldsVectorIndexMixin:
+    """A Mixin for VectorIndex which indexes the results of querysets of EmbeddableFieldsMixin models"""
 
     querysets: ClassVar[Sequence[models.QuerySet]]
 
@@ -322,8 +323,8 @@ class EmbeddableFieldsVectorIndex(VectorIndex):
         return all_documents
 
 
-class PageEmbeddableFieldsVectorIndex(EmbeddableFieldsVectorIndex):
-    """A vector indexed for use with Wagtail pages that automatically
+class PageEmbeddableFieldsVectorIndexMixin(EmbeddableFieldsVectorIndexMixin):
+    """A mixin for VectorIndex for use with Wagtail pages that automatically
     restricts indexed models to live pages."""
 
     querysets: Sequence[PageQuerySet]
@@ -360,21 +361,29 @@ class GeneratedIndexMixin(models.Model):
     def build_vector_index_class(cls) -> type[VectorIndex]:
         """Build a VectorIndex class for this model"""
 
+        class_list = ()
         # If the user has specified a custom `vector_index_class`, use that
         if cls.vector_index_class:
-            index_cls = cls.vector_index_class
-        # If the model is a Wagtail Page, use a special PageEmbeddableFieldsVectorIndex
-        elif issubclass(cls, Page):
-            index_cls = PageEmbeddableFieldsVectorIndex
-        # Otherwise use the standard EmbeddableFieldsVectorIndex
+            class_list = (cls.vector_index_class,)
         else:
-            index_cls = EmbeddableFieldsVectorIndex
+            vector_backend = get_vector_backend("default")
+            base_cls = vector_backend.index_class
+            # If the model is a Wagtail Page, use a special PageEmbeddableFieldsVectorIndexMixin
+            if issubclass(cls, Page):
+                mixin_cls = PageEmbeddableFieldsVectorIndexMixin
+            # Otherwise use the standard EmbeddableFieldsVectorIndexMixin
+            else:
+                mixin_cls = EmbeddableFieldsVectorIndexMixin
+            class_list = (
+                mixin_cls,
+                base_cls,
+            )
 
         return cast(
             type[VectorIndex],
             type(
                 cls.generated_index_class_name(),
-                (index_cls,),
+                class_list,
                 {
                     "querysets": [cls.objects.all()],
                 },

@@ -1,36 +1,13 @@
 import copy
-from collections.abc import Generator, Iterable, Mapping, Sequence
+from collections.abc import Mapping
 from typing import Any, Generic, TypeVar
 
 from django.core.exceptions import ImproperlyConfigured
 
-from wagtail_vector_index.index.base import Document, VectorIndex
-from wagtail_vector_index.index.registry import registry
+from wagtail_vector_index.index.base import VectorIndex
 
 ConfigClass = TypeVar("ConfigClass")
-IndexClass = TypeVar("IndexClass", bound="Index")
-
-
-class Index:
-    def __init__(self, index_name: str, **kwargs: Any) -> None:
-        self.index_name = index_name
-
-    def get_vector_index(self) -> "VectorIndex":
-        return registry[self.index_name]()
-
-    def upsert(self, *, documents: Iterable["Document"]) -> None:
-        raise NotImplementedError
-
-    def clear(self) -> None:
-        raise NotImplementedError
-
-    def delete(self, *, document_ids: Sequence[str]) -> None:
-        raise NotImplementedError
-
-    def similarity_search(
-        self, query_vector: Sequence[float], *, limit: int = 5
-    ) -> Generator[Document, None, None]:
-        raise NotImplementedError
+IndexClass = TypeVar("IndexClass", bound="VectorIndex")
 
 
 class Backend(Generic[ConfigClass, IndexClass]):
