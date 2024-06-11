@@ -10,7 +10,7 @@ The main goal of `wagtail-vector-index` is to allow a developer to generate and 
 
 `VectorIndex`s are the type most developers will be interacting with. A `VectorIndex` represents a set of `Documents` that can be queried.
 
-A simple implementation of `VectorIndex` implements the three public APIs methods; `query`, `similar` and `search`.
+A simple implementation of `VectorIndex` implements the three public API methods; `query`, `similar` and `search`.
 
 The `rebuild_index` method on a `VectorIndex` takes those documents and stores them somewhere.
 
