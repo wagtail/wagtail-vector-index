@@ -13,13 +13,13 @@ There are two ways to use Vector Indexes. Either:
 
 If you don't need to customise the way your index behaves, you can automatically generate a Vector Index based on an existing model in your application:
 
-1. Add Wagtail AI's `VectorIndexedMixin` mixin to your model
+1. Add the `VectorIndexedMixin` mixin to your model
 2. Set `embedding_fields` to a list of `EmbeddingField`s representing the fields you want to be included in the embeddings
 
 ```python
 from django.db import models
 from wagtail.models import Page
-from wagtail_vector_index.index.models import VectorIndexedMixin, EmbeddingField
+from wagtail_vector_index.storage.models import VectorIndexedMixin, EmbeddingField
 
 
 class MyPage(VectorIndexedMixin, Page):
@@ -41,13 +41,16 @@ The `VectorIndexedMixin` class is made up of two other mixins:
 
 ## Creating your own index
 
-If you want to customise your vector index, you can build your own subclass of `EmbeddableFieldsVectorIndex` and configure your model to use it with the `vector_index_class` property:
+If you want to customise your vector index, you can build your own `VectorIndex` class and configure your model to use it with the `vector_index_class` property:
 
 ```python
-from wagtail_vector_index.index import EmbeddableFieldsVectorIndex
+from wagtail_vector_index.storage.models import (
+    EmbeddableFieldsVectorIndexMixin,
+    DefaultStorageVectorIndex,
+)
 
 
-class MyEmbeddableFieldsVectorIndex(EmbeddableFieldsVectorIndex):
+class MyVectorIndex(EmbeddableFieldsVectorIndexMixin, DefaultStorageVectorIndex):
     embedding_backend_alias = "openai"
 
 
@@ -56,7 +59,7 @@ class MyPage(VectorIndexedMixin, Page):
 
     embedding_fields = [EmbeddingField("title"), EmbeddingField("body")]
 
-    vector_index_class = MyEmbeddableFieldsVectorIndex
+    vector_index_class = MyVectorIndex
 ```
 
 
@@ -64,13 +67,16 @@ class MyPage(VectorIndexedMixin, Page):
 
 One of the things you might want to do with a custom index is query across multiple models, or on a subset of models. To do this, they need to be in a vector index together.
 
-To do this, override `querysets` or `_get_querysets()` on your `EmbeddableFieldsVectorIndex` class:
+To do this, override `querysets` or `_get_querysets()` on your custom Vector Index class:
 
 ```python
-from wagtail_vector_index.index.models import EmbeddableFieldsVectorIndex
+from wagtail_vector_index.storage.models import (
+    EmbeddableFieldsVectorIndexMixin,
+    DefaultStorageVectorIndex,
+)
 
 
-class MyEmbeddableFieldsVectorIndex(EmbeddableFieldsVectorIndex):
+class MyVectorIndex(EmbeddableFieldsVectorIndexMixin, DefaultStorageVectorIndex):
     querysets = [
         MyModel.objects.all(),
         MyOtherModel.objects.filter(name__startswith="AI: "),
@@ -80,13 +86,13 @@ class MyEmbeddableFieldsVectorIndex(EmbeddableFieldsVectorIndex):
 Once populated (with the `update_vector_indexes` management command), these indexes can be queried just like an automatically generated index:
 
 ```python
-index = MyEmbeddableFieldsVectorIndex()
+index = MyVectorIndex()
 index.query("Are you suggesting that coconuts migrate?")
 ```
 
 ### Setting a custom DocumentConverter
 
-The `EmbeddableFieldsVectorIndex` class knows how to split up your page/model using a Document Converter - a class which handles the conversion between your model and a Document, which is then stored in the vector store.
+The `EmbeddableFieldsVectorIndexMixin` mixin knows how to split up your page/model using a Document Converter - a class which handles the conversion between your model and a Document, which is then stored in the vector store.
 
 By default this looks at all the `embedding_fields` on your page, builds a representation of them, splits them in to chunks and then generations embeddings for each chunk.
 
@@ -94,9 +100,10 @@ You might want to customise this behavior. To do this you can create your own `D
 
 
 ```python
-from wagtail_vector_index.index.models import (
-    EmbeddableFieldsVectorIndex,
+from wagtail_vector_index.storage.models import (
+    EmbeddableFieldsVectorIndexMixin,
     EmbeddableFieldsDocumentConverter,
+    DefaultStorageVectorIndex,
 )
 
 
@@ -105,7 +112,9 @@ class MyDocumentConverter(EmbeddableFieldsDocumentConverter):
         return object.body.split("\n")
 
 
-class MyEmbeddableFieldsVectorIndex(EmbeddableFieldsVectorIndex):
+class MyEmbeddableFieldsVectorIndex(
+    EmbeddableFieldsVectorIndexMixin, DefaultStorageVectorIndex
+):
     querysets = [
         MyModel.objects.all(),
         MyOtherModel.objects.filter(name__startswith="AI: "),
@@ -113,4 +122,51 @@ class MyEmbeddableFieldsVectorIndex(EmbeddableFieldsVectorIndex):
 
     def get_converter_class(self):
         return MyDocumentConverter
+```
+
+### How Vector Indexes are structured
+
+A simple vector index implements three public methods: `search`, `query`, and `similar`.
+
+To make these work in practice, a vector index also needs to:
+
+- Know what content to query/search over
+- Know where to store that content
+
+These behaviours can be added to a basic `VectorIndex` with mixins provided by the package, or with your own custom mixins.
+
+When working with Django/Wagtail models, knowing what content to query/search over is handled by the `EmbeddableFieldsVectorIndexMixin`. This looks at all the specified querysets, and extracts content from their `embedding_fields`, converting them to `Documents`.
+
+To store that content somewhere, the package supports multiple Storage Providers, each with their own mixin. These mixins add behaviour for storing and querying content from a specific provider. e.g. the `PgvectorIndexMixin`, when added to a `VectorIndex`, will store that content in a `pgvector` table on your PostgreSQL database.
+
+A `VectorIndex` with all behaviour specified through mixins would look like:
+
+```python
+class MyVectorIndex(EmebeddableFieldsVectorIndexMixin, PgvectorIndexMixin, VectorIndex):
+    pass
+```
+
+To use a storage provider-specific mixin, you must first configure that [./storage-providers](storage provider) in your Django settings. If you are using multiple providers, you can specify which alias to use using the `storage_provider_alias` class attribute on your `VectorIndex`.
+
+```python
+WAGTAIL_VECTOR_INDEX_STORAGE_PROVIDERS = {
+    "default": {
+        "STORAGE_PROVIDER": "wagtail_vector_index.storage.pgvector.PgvectorStorageProvider",
+    },
+    "weaviate": {
+        "STORAGE_PROVIDER": "wagtail_vector_index.storage.weaviate.WeaviateStorageProvider",
+    },
+}
+
+
+class MyPgvectorVectorIndex(
+    EmebeddableFieldsVectorIndexMixin, PgvectorIndexMixin, VectorIndex
+):
+    storage_provider_alias = "default"
+
+
+class MyWeaviateVectorIndex(
+    EmebeddableFieldsVectorIndexMixin, WeaviateIndexMixin, VectorIndex
+):
+    storage_provider_alias = "weaviate"
 ```

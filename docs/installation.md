@@ -6,14 +6,14 @@
     * At this point in time, Wagtail Vector Index only works with the
      [llm package](https://llm.datasette.io/) for the AI backend so
      you need to install it as an optional dependency `python -m pip install wagtail-vector-index[llm]`.
-    * For the vector backend, you can choose between:
+    * For the vector storage provider, you can choose between:
         - pgvector _(Postgres database extension)_:
           `python -m pip install wagtail-vector-index[pgvector]`
         - Qdrant: `python -m pip install wagtail-vector-index[qdrant]`
         - Weaviate: `python -m pip install wagtail-vector-index[weaviate]`
         - NumPy: `python -m pip install wagtail-vector-index[numpy]` *(not recommended
          for big databases or production applications due to scale issues)*
-        - Read more about backends on [the specific documentation page: **Backends**](./vector-backends.md).
+        - Read more about storage providers on [the specific documentation page: **Storage Providers**](./storage-providerrs.md).
     * In your final installation call, you should comma-separate the optional
       dependencies you want to install, e.g.
       `python -m pip install wagtail-vector-index[llm,pgvector]`.

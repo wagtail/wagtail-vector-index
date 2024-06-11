@@ -47,7 +47,7 @@ python testmanage.py runserver 0:8000
 
 If you have bootstrapped your environment with `tox`, there will be a default admin user (username: `admin`, password: `changeme`) available.
 
-### Developing with the pgvector backend
+### Developing with the pgvector storage provider
 
 By default, the development environment runs using the `NumpyBackend` but if you need to test with large datasets or work on the `PgvectorBackend` itself, you'll need a local PostgreSQL instance with `pgvector` installed.
 
@@ -61,7 +61,7 @@ To use it:
 You can then configure the test application to use this database by setting the following environment variables.
 
 ```
-WAGTAIL_VECTOR_INDEX_DEFAULT_BACKEND=pgvector
+WAGTAIL_VECTOR_INDEX_DEFAULT_STORAGE_PROVIDER=pgvector
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres
 ```
 
