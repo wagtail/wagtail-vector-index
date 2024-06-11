@@ -1,5 +1,3 @@
-from .provider import WeaviateStorageProvider
+from .provider import WeaviateIndexMixin, WeaviateStorageProvider
 
-__all__ = [
-    "WeaviateStorageProvider",
-]
+__all__ = ["WeaviateStorageProvider", "WeaviateIndexMixin"]

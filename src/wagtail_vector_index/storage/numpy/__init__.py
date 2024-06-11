@@ -1,5 +1,3 @@
-from .provider import NumpyStorageProvider
+from .provider import NumpyIndexMixin, NumpyStorageProvider
 
-__all__ = [
-    "NumpyStorageProvider",
-]
+__all__ = ["NumpyStorageProvider", "NumpyIndexMixin"]

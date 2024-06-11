@@ -1,5 +1,3 @@
-from .provider import QdrantStorageProvider
+from .provider import QdrantIndexMixin, QdrantStorageProvider
 
-__all__ = [
-    "QdrantStorageProvider",
-]
+__all__ = ["QdrantStorageProvider", "QdrantIndexMixin"]

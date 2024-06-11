@@ -1,5 +1,3 @@
-from .provider import PgvectorStorageProvider
+from .provider import PgvectorIndexMixin, PgvectorStorageProvider
 
-__all__ = [
-    "PgvectorStorageProvider",
-]
+__all__ = ["PgvectorStorageProvider", "PgvectorIndexMixin"]

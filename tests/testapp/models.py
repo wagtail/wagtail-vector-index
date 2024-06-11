@@ -2,9 +2,8 @@ from django.db import models
 from wagtail.admin.panels import FieldPanel
 from wagtail.fields import RichTextField
 from wagtail.models import Page
-from wagtail_vector_index.storage import get_storage_provider
-from wagtail_vector_index.storage.base import VectorIndex
 from wagtail_vector_index.storage.models import (
+    DefaultStorageVectorIndex,
     EmbeddableFieldsDocumentConverter,
     EmbeddingField,
     PageEmbeddableFieldsVectorIndexMixin,
@@ -39,13 +38,8 @@ class DifferentPage(VectorIndexedMixin, Page):
     embedding_fields = [EmbeddingField("title", important=True), EmbeddingField("body")]
 
 
-def get_default_storage_mixin():
-    provider = get_storage_provider("default")
-    return provider.index_mixin
-
-
 class MultiplePageVectorIndex(
-    PageEmbeddableFieldsVectorIndexMixin, get_default_storage_mixin(), VectorIndex
+    PageEmbeddableFieldsVectorIndexMixin, DefaultStorageVectorIndex
 ):
     querysets = [ExamplePage.objects.all(), DifferentPage.objects.all()]  # type: ignore
 
