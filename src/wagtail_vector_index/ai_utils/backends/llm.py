@@ -5,7 +5,7 @@ from typing import Any, NotRequired, Self
 import llm
 from llm.models import dataclass
 
-from ..types import AIResponse
+from ..types import AIResponse, ChatMessage
 from .base import (
     BaseChatBackend,
     BaseChatConfig,
@@ -77,10 +77,18 @@ class LLMChatBackend(BaseChatBackend[LLMChatBackendConfig]):
     config: LLMChatBackendConfig
     config_cls = LLMChatBackendConfig
 
-    def chat(self, *, user_messages: Sequence[str]) -> AIResponse:
+    def chat(
+        self, *, messages: Sequence[ChatMessage], stream: bool = False, **kwargs
+    ) -> AIResponse:
+        if stream:
+            raise NotImplementedError(
+                "Streaming chat is not currently supported by this backend."
+            )
+
         model = self._get_llm_chat_model()
-        full_prompt = os.linesep.join(user_messages)
-        return model.prompt(full_prompt, **self._get_prompt_kwargs())
+        full_prompt = os.linesep.join([message["content"] for message in messages])
+        text_response = model.prompt(full_prompt, **self._get_prompt_kwargs()).text()
+        return AIResponse(choices=[text_response])
 
     def _get_prompt_kwargs(self, **prompt_kwargs: Any) -> Mapping[str, Any]:
         prompt_kwargs = {}

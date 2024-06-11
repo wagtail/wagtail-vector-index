@@ -1,5 +1,6 @@
 import os
 import re
+from typing import List
 
 import pytest
 from wagtail_vector_index.ai_utils.backends import (
@@ -7,6 +8,7 @@ from wagtail_vector_index.ai_utils.backends import (
     get_chat_backend,
     get_embedding_backend,
 )
+from wagtail_vector_index.ai_utils.types import ChatMessage
 
 try:
     import llm  # noqa: F401
@@ -121,7 +123,10 @@ def test_llm_prompt_with_custom_kwargs(mocker):
         "He waddled in the water-pudge, and waggle went his tail,",
         "And chirrupt up his wings to dry upon the garden rail.",
     ]
-    backend.chat(user_messages=input_text)
+    messages: List[ChatMessage] = [
+        {"content": message, "role": "user"} for message in input_text
+    ]
+    backend.chat(messages=messages)
     prompt_mock.assert_called_once_with(
         os.linesep.join(input_text),
         system="This is a test system prompt.",

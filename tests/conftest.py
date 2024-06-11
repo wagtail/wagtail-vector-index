@@ -1,4 +1,4 @@
-from collections.abc import Iterator, Sequence
+from collections.abc import Sequence
 from contextlib import contextmanager
 
 import pytest
@@ -23,19 +23,11 @@ def patch_embedding_fields():
     return _patch_embedding_fields
 
 
-class MockResponse(AIResponse):
-    def __iter__(self) -> Iterator[str]:
-        return iter("AI! Don't talk to me about AI!".split())
-
-    def text(self):
-        return "AI! Don't talk to me about AI!"
-
-
 class ChatMockBackend(BaseChatBackend):
     config_cls = BaseChatConfig
 
-    def chat(self, user_messages: Sequence[str]) -> AIResponse:
-        return MockResponse()
+    def chat(self, messages: Sequence[str]) -> AIResponse:
+        return AIResponse(choices=["AI! Don't talk to me about AI!"])
 
 
 class EmbeddingMockBackend(BaseEmbeddingBackend):

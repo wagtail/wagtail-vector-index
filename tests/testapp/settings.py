@@ -165,7 +165,7 @@ if _wagtail_ai_default_backend == "chatgpt":
     WAGTAIL_VECTOR_INDEX = {
         "CHAT_BACKENDS": {
             "default": {
-                "CLASS": "wagtail_vector_index.ai_utils.backends.llm.LLMChatBackend",
+                "CLASS": "wagtail_vector_index.ai_utils.backends.litellm.LiteLLMChatBackend",
                 "CONFIG": {
                     "MODEL_ID": "gpt-3.5-turbo",
                 },
@@ -173,9 +173,9 @@ if _wagtail_ai_default_backend == "chatgpt":
         },
         "EMBEDDING_BACKENDS": {
             "default": {
-                "CLASS": "wagtail_vector_index.ai_utils.backends.llm.LLMEmbeddingBackend",
+                "CLASS": "wagtail_vector_index.ai_utils.backends.litellm.LiteLLMEmbeddingBackend",
                 "CONFIG": {
-                    "MODEL_ID": "ada-002",
+                    "MODEL_ID": "text-embedding-ada-002",
                 },
             }
         },

@@ -1,15 +1,10 @@
-# AI Backends
+# LLM
 
-Wagtail Vector Index can be configured to use different backends to support different AI services.
+LLM is an alternative supported backend provider which uses the [`llm` library](https://github.com/simonw/llm) to enable communication with multiple AI providers.
 
-There are two types of backends available for customisation:
+To start using this backend, the `llm` package must be installed. This can be done by either adding `llm` to your requirements manually, or installing `wagtail-vector-index[llm]`.
 
--   Embedding Backends - used to generate vector representations of text
--   Chat Backends - used to generate 'chat' responses from queries
-
-Currently the only (and default) backends available in Wagtail Vector Index are `LLMChatBackend` and `LLMEmbeddingBackend`.
-
-Backends and their associated settings can be customised using the `WAGTAIL_VECTOR_INDEX` setting in your Django project settings file:
+## Chat Backend
 
 ```python
 WAGTAIL_VECTOR_INDEX = {
@@ -17,28 +12,14 @@ WAGTAIL_VECTOR_INDEX = {
         "default": {
             "CLASS": "wagtail_vector_index.ai_utils.backends.llm.LLMChatBackend",
             "CONFIG": {
-                "MODEL_ID": "gpt-3.5-turbo",
+                "MODEL_ID": "gpt-4o",
             },
         },
-    },
-    "EMBEDDING_BACKENDS": {
-        "default": {
-            "CLASS": "wagtail_vector_index.ai_utils.backends.llm.LLMEmbeddingBackend",
-            "CONFIG": {
-                "MODEL_ID": "ada-002",
-            },
-        }
     },
 }
 ```
 
-## Chat Backends
-
-### `LLMChatBackend`
-
-This backend uses the ["LLM" library](https://llm.datasette.io/en/stable/) which offers support for many AI services through plugins.
-
-By default, it is configured to use OpenAI's `gpt-3.5-turbo` model.
+If `MODEL_ID` is omitted, OpenAI's `gpt-3.5-turbo` will be used by default.
 
 ### Using other models
 
@@ -48,7 +29,7 @@ You can use the command line interface to see the "LLM" library's models install
 llm models
 ```
 
-Then you can swap `MODEL_ID` in the configuration to use a different model. For example, to use GPT-4:
+Specify `MODEL_ID` in the configuration to use a different model. For example, to use GPT-4:
 
 ```python
 WAGTAIL_VECTOR_INDEX = {
@@ -99,9 +80,7 @@ WAGTAIL_VECTOR_INDEX = {
 }
 ```
 
-## Embedding Backends
-
-### `LLMEmbeddingBackend`
+## Embedding Backend
 
 This backend uses the ["LLM" library](https://llm.datasette.io/en/stable/) which offers support for many AI services through plugins.
 
@@ -121,7 +100,7 @@ Then you can swap `MODEL_ID` in the configuration to use a different model:
 WAGTAIL_VECTOR_INDEX = {
     "EMBEDDING_BACKENDS": {
         "default": {
-            "CLASS": "wagtail_vector_index.ai_utils.backends.llm.LLMChatBackend",
+            "CLASS": "wagtail_vector_index.ai_utils.backends.llm.LLMEmbeddingBackend",
             "CONFIG": {
                 "MODEL_ID": "mini-16",
             },
