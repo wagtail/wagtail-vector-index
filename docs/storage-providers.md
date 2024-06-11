@@ -38,7 +38,7 @@ Wagtail Vector Index with an optional dependency:
 python -m pip install wagtail-vector-index[numpy]
 ```
 
-This providers iterates through each embedding in the database, running similarity
+This provide siterates through each embedding in the database, running similarity
 checks against content in-memory. This may be useful for small sets of content,
 but will likely be slow and consume large amounts of memory as the size of
 indexed content increases. For this reason it is not recommended for production

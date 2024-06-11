@@ -6,7 +6,7 @@ The APIs described here should not be considered 'public' or final unless they a
 
 The main goal of `wagtail-vector-index` is to allow a developer to generate and store vector embeddings of 'things' (mainly Wagtail Pages). To do this, and to allow some flexibility in how that is done, that process is broken down in to a few key components:
 
-## `VectorIndex` - `index/base.py`
+## `VectorIndex` - `storage/base.py`
 
 `VectorIndex`s are the type most developers will be interacting with. A `VectorIndex` represents a set of `Documents` that can be queried.
 

@@ -92,6 +92,7 @@ class PgvectorIndexMixin(MixinBase):
 
     def _get_queryset(self) -> "PgvectorEmbeddingQuerySet":
         # objects is technically a Manager instance but we want to use the custom
+        # queryset method
         return cast("PgvectorEmbeddingQuerySet", _embedding_model().objects).in_index(
             type(self).__name__
         )
