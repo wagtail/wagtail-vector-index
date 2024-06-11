@@ -14,6 +14,10 @@ from .types import DistanceMethod
 if TYPE_CHECKING:
     from .models import PgvectorEmbedding, PgvectorEmbeddingQuerySet
 
+    MixinBase = StorageVectorIndexMixinProtocol["PgvectorStorageProvider"]
+else:
+    MixinBase = object
+
 logger = logging.Logger(__name__)
 
 __all__ = [
@@ -41,7 +45,7 @@ class PgvectorStorageProviderConfig:
         super().__init__(**kwargs)
 
 
-class PgvectorIndexMixin(StorageVectorIndexMixinProtocol["PgvectorStorageProvider"]):
+class PgvectorIndexMixin(MixinBase):
     upsert_batch_size: ClassVar[int] = 500
     bulk_create_batch_size: ClassVar[int] = 500
     bulk_create_ignore_conflicts: ClassVar[bool] = True

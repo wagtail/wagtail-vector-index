@@ -22,6 +22,10 @@ class StorageVectorIndexMixinProtocol(Protocol[StorageProviderClass]):
 
     storage_provider: StorageProviderClass
 
+    def rebuild_index(self) -> None: ...
+
+    def upsert(self) -> None: ...
+
     def get_documents(self) -> Iterable["Document"]: ...
 
     def _get_storage_provider(self) -> StorageProviderClass: ...
@@ -108,7 +112,7 @@ class VectorIndex(Generic[ConfigClass]):
         *args,
         **kwargs,
     ):
-        super().__init__()
+        super().__init__(*args, **kwargs)
 
         self.embedding_backend = get_embedding_backend(self.embedding_backend_alias)
 

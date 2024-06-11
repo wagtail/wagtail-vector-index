@@ -1,7 +1,7 @@
 import json
 from collections.abc import Generator, Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import weaviate
 from django.core.exceptions import ImproperlyConfigured
@@ -20,18 +20,28 @@ class ProviderConfig:
     API_KEY: str | None = None
 
 
-class WeaviateIndexMixin(StorageVectorIndexMixinProtocol["WeaviateStorageProvider"]):
-    def __init__(self, index_name: str, **kwargs: Any):
-        self.index_name = index_name
-        self.storage_provider = self._get_storage_provider()
+if TYPE_CHECKING:
+    MixinBase = StorageVectorIndexMixinProtocol["WeaviateStorageProvider"]
+else:
+    MixinBase = object
 
-    def rebuild_index(self) -> None:
+
+class WeaviateIndexMixin(MixinBase):
+    def __init__(self, **kwargs: Any):
+        super().__init__(**kwargs)
+        self.storage_provider = self._get_storage_provider()
+        self.index_name = self.__class__.__name__
+
+    def rebuild_index(
+        self,
+    ) -> None:
         self.storage_provider.client.schema.delete_class(self.index_name)
         self.storage_provider.client.schema.create_class(
             {
                 "class": self.index_name,
             }
         )
+        self.upsert(documents=self.get_documents())
 
     def upsert(self, *, documents: Iterable[Document]) -> None:
         with self.storage_provider.client.batch as batch:

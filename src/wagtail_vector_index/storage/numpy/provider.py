@@ -1,10 +1,15 @@
 import logging
 from collections.abc import Generator, Iterable, Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 
-from wagtail_vector_index.storage.base import Document, StorageProvider, VectorIndex
+from wagtail_vector_index.storage.base import (
+    Document,
+    StorageProvider,
+    StorageVectorIndexMixinProtocol,
+)
 
 logger = logging.Logger(__name__)
 
@@ -13,7 +18,13 @@ logger = logging.Logger(__name__)
 class ProviderConfig: ...
 
 
-class NumpyIndexMixin(VectorIndex):
+if TYPE_CHECKING:
+    MixinBase = StorageVectorIndexMixinProtocol["NumpyStorageProvider"]
+else:
+    MixinBase = object
+
+
+class NumpyIndexMixin(MixinBase):
     def rebuild_index(self) -> None:
         self.get_documents()
 

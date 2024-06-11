@@ -1,9 +1,10 @@
 from collections.abc import Generator, Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qdrant_models
+from qdrant_client.models import Distance
 
 from wagtail_vector_index.storage.base import (
     Document,
@@ -18,17 +19,27 @@ class ProviderConfig:
     API_KEY: str | None = None
 
 
-class QdrantIndexMixin(StorageVectorIndexMixinProtocol["QdrantStorageProvider"]):
-    def __init__(self, index_name: str, **kwargs: Any) -> None:
-        self.index_name = index_name
+if TYPE_CHECKING:
+    MixinBase = StorageVectorIndexMixinProtocol["QdrantStorageProvider"]
+else:
+    MixinBase = object
+
+
+class QdrantIndexMixin(MixinBase):
+    def __init__(self, **kwargs: Any) -> None:
+        self.index_name = self.__class__.__name__
         self.storage_provider = self._get_storage_provider()
+        super().__init__(**kwargs)
 
     def rebuild_index(self) -> None:
-        self.storage_provider.client.delete_collection(name=self.index_name)
+        self.storage_provider.client.delete_collection(collection_name=self.index_name)
         self.storage_provider.client.create_collection(
-            name=self.index_name,
-            vectors_config=qdrant_models.VectorParams(size=512, distance="Cosine"),
+            collection_name=self.index_name,
+            vectors_config=qdrant_models.VectorParams(
+                size=512, distance=Distance.COSINE
+            ),
         )
+        self.upsert(documents=self.get_documents())
 
     def upsert(self, *, documents: Iterable[Document]) -> None:
         points = [
