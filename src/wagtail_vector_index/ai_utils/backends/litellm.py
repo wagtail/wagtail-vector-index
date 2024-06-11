@@ -86,7 +86,7 @@ class LiteLLMBackendConfigMixin:
     @classmethod
     def _get_token_limit(cls, *, model_id: str) -> int:
         """Backend-specific method for retrieving the token limit for the provided model."""
-        model_info = litellm.get_model_info(model=model_id)
+        model_info = litellm.get_model_info(model=model_id)  # type: ignore
         if (
             not model_info
             or "max_input_tokens" not in model_info
@@ -111,7 +111,7 @@ class LiteLLMEmbeddingBackendConfig(
 ):
     @classmethod
     def _get_embedding_output_dimensions(cls, *, model_id: str) -> int:
-        model_info = litellm.get_model_info(model=model_id)
+        model_info = litellm.get_model_info(model=model_id)  # type: ignore
         if (
             not model_info
             or "output_vector_size" not in model_info
