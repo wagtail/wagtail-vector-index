@@ -32,7 +32,7 @@ ALLOWED_HOSTS = ["*"]
 
 INSTALLED_APPS = [
     "wagtail_vector_index",
-    "wagtail_vector_index.backends.pgvector",
+    "wagtail_vector_index.storage.pgvector",
     "testapp",
     "wagtail.contrib.search_promotions",
     "wagtail.contrib.forms",
@@ -207,24 +207,28 @@ elif _wagtail_ai_default_backend == "echo":
 else:
     raise ValueError(f"Invalid backend: {_wagtail_ai_default_backend}")
 
-_wagtail_vector_default_backend = (
-    os.environ.get("WAGTAIL_VECTOR_INDEX_DEFAULT_BACKEND", "numpy").lower().strip()
+_wagtail_vector_default_storage_provider = (
+    os.environ.get("WAGTAIL_VECTOR_INDEX_DEFAULT_STORAGE_PROVIDER", "numpy")
+    .lower()
+    .strip()
 )
 
-if _wagtail_vector_default_backend == "numpy":
-    WAGTAIL_VECTOR_INDEX_VECTOR_BACKENDS = {
+if _wagtail_vector_default_storage_provider == "numpy":
+    WAGTAIL_VECTOR_INDEX_STORAGE_PROVIDERS = {
         "default": {
-            "BACKEND": "wagtail_vector_index.backends.numpy.NumpyBackend",
+            "STORAGE_PROVIDER": "wagtail_vector_index.storage.numpy.NumpyStorageProvider",
         }
     }
-elif _wagtail_vector_default_backend == "pgvector":
-    WAGTAIL_VECTOR_INDEX_VECTOR_BACKENDS = {
+elif _wagtail_vector_default_storage_provider == "pgvector":
+    WAGTAIL_VECTOR_INDEX_STORAGE_PROVIDERS = {
         "default": {
-            "BACKEND": "wagtail_vector_index.backends.pgvector.backend.PgvectorBackend",
+            "STORAGE_PROVIDER": "wagtail_vector_index.storage.pgvector.PgvectorStorageProvider",
         }
     }
 else:
-    raise ValueError(f"Invalid backend: {_wagtail_vector_default_backend}")
+    raise ValueError(
+        f"Invalid storage provider: {_wagtail_vector_default_storage_provider}"
+    )
 
 
 LOGGING = {

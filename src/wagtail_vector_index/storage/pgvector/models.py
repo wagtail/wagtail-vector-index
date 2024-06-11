@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from typing import Self
 
 from django.db import models
-from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _
 from pgvector.django import CosineDistance, L2Distance, MaxInnerProduct, VectorField
 
 from .types import DistanceMethod

@@ -5,22 +5,30 @@ from typing import Any
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qdrant_models
 
-from wagtail_vector_index.backends.base import Backend, Index
-from wagtail_vector_index.index.base import Document
+from wagtail_vector_index.storage.base import (
+    Document,
+    StorageProvider,
+    StorageVectorIndexMixinProtocol,
+)
 
 
 @dataclass
-class BackendConfig:
+class ProviderConfig:
     HOST: str
     API_KEY: str | None = None
 
 
-class QdrantIndex(Index):
-    def __init__(
-        self, index_name: str, api_client: QdrantClient, **kwargs: Any
-    ) -> None:
+class QdrantIndexMixin(StorageVectorIndexMixinProtocol["QdrantStorageProvider"]):
+    def __init__(self, index_name: str, **kwargs: Any) -> None:
         self.index_name = index_name
-        self.client = api_client
+        self.storage_provider = self._get_storage_provider()
+
+    def rebuild_index(self) -> None:
+        self.storage_provider.client.delete_collection(name=self.index_name)
+        self.storage_provider.client.create_collection(
+            name=self.index_name,
+            vectors_config=qdrant_models.VectorParams(size=512, distance="Cosine"),
+        )
 
     def upsert(self, *, documents: Iterable[Document]) -> None:
         points = [
@@ -31,10 +39,12 @@ class QdrantIndex(Index):
             )
             for document in documents
         ]
-        self.client.upsert(collection_name=self.index_name, points=points)
+        self.storage_provider.client.upsert(
+            collection_name=self.index_name, points=points
+        )
 
     def delete(self, *, document_ids: Sequence[str]) -> None:
-        self.client.delete(
+        self.storage_provider.client.delete(
             collection_name=self.index_name,
             points_selector=qdrant_models.PointIdsList(points=document_ids),
         )
@@ -42,7 +52,7 @@ class QdrantIndex(Index):
     def similarity_search(
         self, query_vector: Sequence[float], *, limit: int = 5
     ) -> Generator[Document, None, None]:
-        similar_documents = self.client.search(
+        similar_documents = self.storage_provider.client.search(
             collection_name=self.index_name, query_vector=query_vector, limit=limit
         )
         for doc in similar_documents:
@@ -51,24 +61,13 @@ class QdrantIndex(Index):
             )
 
 
-class QdrantBackend(Backend[BackendConfig, QdrantIndex]):
-    config_class = BackendConfig
+class QdrantStorageProvider(StorageProvider[ProviderConfig, QdrantIndexMixin]):
+    config_class = ProviderConfig
+    index_mixin = QdrantIndexMixin
 
     def __init__(self, config: Mapping[str, Any]) -> None:
         super().__init__(config)
         self.client = QdrantClient(url=self.config.HOST, api_key=self.config.API_KEY)
 
-    def get_index(self, index_name: str) -> QdrantIndex:
-        return QdrantIndex(index_name, api_client=self.client)
-
-    def create_index(self, index_name: str, *, vector_size: int) -> QdrantIndex:
-        self.client.create_collection(
-            name=index_name,
-            vectors_config=qdrant_models.VectorParams(
-                size=vector_size, distance="Cosine"
-            ),
-        )
-        return self.get_index(index_name)
-
-    def delete_index(self, index_name: str) -> None:
-        self.client.delete_collection(name=index_name)
+    def rebuild_indexes(self) -> None:
+        pass

@@ -1,11 +1,56 @@
+import copy
 from collections.abc import Generator, Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import ClassVar, Protocol
+from typing import Any, ClassVar, Generic, Protocol, TypeVar
 
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 
 from wagtail_vector_index.ai import get_chat_backend, get_embedding_backend
 from wagtail_vector_index.ai_utils.backends.base import BaseEmbeddingBackend
+from wagtail_vector_index.storage import (
+    get_storage_provider,
+)
+
+StorageProviderClass = TypeVar("StorageProviderClass")
+ConfigClass = TypeVar("ConfigClass")
+IndexMixin = TypeVar("IndexMixin")
+
+
+class StorageVectorIndexMixinProtocol(Protocol[StorageProviderClass]):
+    """Protocol which defines the minimum requirements for a VectorIndex to be used with a StorageProvider mixin."""
+
+    storage_provider: StorageProviderClass
+
+    def get_documents(self) -> Iterable["Document"]: ...
+
+    def _get_storage_provider(self) -> StorageProviderClass: ...
+
+
+class StorageProvider(Generic[ConfigClass, IndexMixin]):
+    """Base class for a storage provider that provides methods for interacting with a provider,
+    e.g. creating and managing indexes."""
+
+    config: ConfigClass
+    config_class: type[ConfigClass]
+    index_mixin: type[IndexMixin]
+
+    def __init__(self, config: Mapping[str, Any]) -> None:
+        try:
+            config = dict(copy.deepcopy(config))
+            self.config = self.config_class(**config)
+        except TypeError as e:
+            raise ImproperlyConfigured(
+                f"Missing configuration settings for the vector backend: {e}"
+            ) from e
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        if not getattr(cls, "config_class"):  # noqa: B009
+            raise AttributeError(
+                f"Storage provider {cls.__name__} must specify a `config_class` class \
+                    attribute"
+            )
+        return super().__init_subclass__(**kwargs)
 
 
 @dataclass(kw_only=True, frozen=True)
@@ -49,14 +94,19 @@ class QueryResponse:
     sources: Iterable[object]
 
 
-class VectorIndex:
+class VectorIndex(Generic[ConfigClass]):
     """Base class for a VectorIndex, representing some set of documents that can be queried"""
 
     # The alias of the backend to use for generating embeddings when documents are added to this index
     embedding_backend_alias: ClassVar[str] = "default"
 
+    # The alias of the storage provider specified in WAGTAIL_VECTOR_INDEX_STORAGE_PROVIDERS
+    storage_provider_alias: ClassVar[str] = "default"
+
     def __init__(
         self,
+        *args,
+        **kwargs,
     ):
         super().__init__()
 
@@ -129,6 +179,14 @@ class VectorIndex:
 
     # Utilities
 
+    def _get_storage_provider(self):
+        provider = get_storage_provider(self.storage_provider_alias)
+        if not issubclass(self.__class__, provider.index_mixin):
+            raise TypeError(
+                f"The storage provider with alias '{self.storage_provider_alias}' requires an index that uses the '{provider.index_mixin.__class__.__name__}' mixin."
+            )
+        return provider
+
     @staticmethod
     def _deduplicate_list(
         objects: Iterable[object],
@@ -143,6 +201,9 @@ class VectorIndex:
 
     # Backend-specific methods
 
+    def rebuild_index(self) -> None:
+        raise NotImplementedError
+
     def upsert(self, *, documents: Iterable["Document"]) -> None:
         raise NotImplementedError
 
@@ -156,12 +217,3 @@ class VectorIndex:
         self, query_vector: Sequence[float], *, limit: int = 5
     ) -> Generator[Document, None, None]:
         raise NotImplementedError
-
-    def rebuild_index(self) -> None:
-        """Build the index from scratch"""
-        self.vector_backend.delete_index(self.__class__.__name__)
-        index = self.vector_backend.create_index(
-            self.__class__.__name__,
-            vector_size=self.embedding_backend.embedding_output_dimensions,
-        )
-        index.upsert(documents=self.get_documents())

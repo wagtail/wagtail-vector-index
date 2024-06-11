@@ -4,17 +4,19 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from wagtail_vector_index.backends.base import Backend, Index
-from wagtail_vector_index.index.base import Document
+from wagtail_vector_index.storage.base import Document, StorageProvider, VectorIndex
 
 logger = logging.Logger(__name__)
 
 
 @dataclass
-class BackendConfig: ...
+class ProviderConfig: ...
 
 
-class NumpyIndex(Index):
+class NumpyIndexMixin(VectorIndex):
+    def rebuild_index(self) -> None:
+        self.get_documents()
+
     def upsert(self, *, documents: Iterable[Document]) -> None:
         pass
 
@@ -25,8 +27,7 @@ class NumpyIndex(Index):
         self, query_vector: Sequence[float], *, limit: int = 5
     ) -> Generator[Document, None, None]:
         similarities = []
-        vector_index = self.get_vector_index()
-        for document in vector_index.get_documents():
+        for document in self.get_documents():
             cosine_similarity = (
                 np.dot(query_vector, document.vector)
                 / np.linalg.norm(query_vector)
@@ -41,14 +42,6 @@ class NumpyIndex(Index):
             yield document
 
 
-class NumpyBackend(Backend[BackendConfig, NumpyIndex]):
-    config_class = BackendConfig
-
-    def get_index(self, index_name: str) -> NumpyIndex:
-        return NumpyIndex(index_name)
-
-    def create_index(self, index_name: str, *, vector_size: int) -> NumpyIndex:
-        return self.get_index(index_name)
-
-    def delete_index(self, index_name: str) -> None:
-        pass
+class NumpyStorageProvider(StorageProvider[ProviderConfig, NumpyIndexMixin]):
+    config_class = ProviderConfig
+    index_mixin = NumpyIndexMixin

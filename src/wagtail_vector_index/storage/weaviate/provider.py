@@ -6,23 +6,35 @@ from typing import Any
 import weaviate
 from django.core.exceptions import ImproperlyConfigured
 
-from wagtail_vector_index.backends.base import Backend, Index
-from wagtail_vector_index.index.base import Document
+from wagtail_vector_index.storage.base import (
+    Document,
+    StorageProvider,
+    StorageVectorIndexMixinProtocol,
+    VectorIndex,
+)
 
 
 @dataclass
-class BackendConfig:
+class ProviderConfig:
     HOST: str
     API_KEY: str | None = None
 
 
-class WeaviateIndex(Index):
-    def __init__(self, index_name: str, api_client: weaviate.Client, **kwargs: Any):
+class WeaviateIndexMixin(StorageVectorIndexMixinProtocol["WeaviateStorageProvider"]):
+    def __init__(self, index_name: str, **kwargs: Any):
         self.index_name = index_name
-        self.client = api_client
+        self.storage_provider = self._get_storage_provider()
+
+    def rebuild_index(self) -> None:
+        self.storage_provider.client.schema.delete_class(self.index_name)
+        self.storage_provider.client.schema.create_class(
+            {
+                "class": self.index_name,
+            }
+        )
 
     def upsert(self, *, documents: Iterable[Document]) -> None:
-        with self.client.batch as batch:
+        with self.storage_provider.client.batch as batch:
             for document in documents:
                 # Store metadata as a JSON string because otherwise
                 # we need to explicitly request each field back in
@@ -47,7 +59,7 @@ class WeaviateIndex(Index):
             "vector": query_vector,
         }
         similar_documents = (
-            self.client.query.get(
+            self.storage_provider.client.query.get(
                 self.index_name,
                 ["embedding_pk", "metadata"],
             )
@@ -65,8 +77,13 @@ class WeaviateIndex(Index):
             )
 
 
-class WeaviateBackend(Backend[BackendConfig, WeaviateIndex]):
-    config_class = BackendConfig
+class WeaviateVectorIndex(WeaviateIndexMixin, VectorIndex):
+    pass
+
+
+class WeaviateStorageProvider(StorageProvider[ProviderConfig, WeaviateIndexMixin]):
+    config_class = ProviderConfig
+    index_mixin = WeaviateIndexMixin
 
     def __init__(self, config: Mapping[str, Any]) -> None:
         super().__init__(config)
@@ -74,17 +91,3 @@ class WeaviateBackend(Backend[BackendConfig, WeaviateIndex]):
             raise ImproperlyConfigured("Weaviate API key is not set")
         auth_config = weaviate.auth.AuthApiKey(api_key=self.config.API_KEY)
         self.client = weaviate.Client(self.config.HOST, auth_client_secret=auth_config)
-
-    def get_index(self, index_name: str) -> WeaviateIndex:
-        return WeaviateIndex(index_name, api_client=self.client)
-
-    def create_index(self, index_name: str, **kwargs: Any) -> WeaviateIndex:
-        self.client.schema.create_class(
-            {
-                "class": index_name,
-            }
-        )
-        return self.get_index(index_name)
-
-    def delete_index(self, index_name):
-        self.client.schema.delete_class(index_name)

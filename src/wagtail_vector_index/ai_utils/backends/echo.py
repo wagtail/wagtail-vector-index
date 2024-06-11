@@ -10,7 +10,7 @@ from typing import Any, NotRequired, Self
 
 from django.core.exceptions import ImproperlyConfigured
 
-from wagtail_vector_index.index.base import Document
+from wagtail_vector_index.storage.base import Document
 
 from ..types import (
     AIResponse,

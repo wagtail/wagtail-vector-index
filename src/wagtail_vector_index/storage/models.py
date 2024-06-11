@@ -25,10 +25,9 @@ from wagtail_vector_index.ai_utils.text_splitting.naive import (
     NaiveTextSplitterCalculator,
 )
 from wagtail_vector_index.ai_utils.types import TextSplitterProtocol
-from wagtail_vector_index.backends import get_vector_backend
-from wagtail_vector_index.index import registry
-from wagtail_vector_index.index.base import Document, VectorIndex
-from wagtail_vector_index.index.exceptions import IndexedTypeFromDocumentError
+from wagtail_vector_index.storage import get_storage_provider, registry
+from wagtail_vector_index.storage.base import Document, VectorIndex
+from wagtail_vector_index.storage.exceptions import IndexedTypeFromDocumentError
 
 """ Everything related to indexing Django models is in this file.
 
@@ -36,7 +35,7 @@ This includes:
 
 - The Embedding Django model, which is used to store embeddings for model instances in the database
 - The EmbeddableFieldsMixin, which is a mixin for Django models that lets user define which fields should be used to generate embeddings
-- The EmbeddableFieldsVectorIndex, which is a VectorIndex that expects EmbeddableFieldsMixin models
+- The EmbeddableFieldsVectorIndexMixin, which is a VectorIndex mixin that expects EmbeddableFieldsMixin models
 - The EmbeddableFieldsDocumentConverter, which is a DocumentConverter that knows how to convert a model instance using the EmbeddableFieldsMixin protocol to and from a Document
 """
 
@@ -102,6 +101,11 @@ class Embedding(models.Model):
                 "content": self.content,
             },
         )
+
+
+# ###########
+# Classes that allow users to automatically generate documents from their models based on fields specified
+# ###########
 
 
 class EmbeddingField(BaseField):
@@ -286,10 +290,16 @@ class EmbeddableFieldsDocumentConverter:
             yield self.from_document(document)
 
 
+# ###########
+# VectorIndex mixins which add model-specific behaviour
+# ###########
+
+
 class EmbeddableFieldsVectorIndexMixin:
     """A Mixin for VectorIndex which indexes the results of querysets of EmbeddableFieldsMixin models"""
 
     querysets: ClassVar[Sequence[models.QuerySet]]
+    embedding_backend: BaseEmbeddingBackend
 
     def _get_querysets(self) -> Sequence[models.QuerySet]:
         return self.querysets
@@ -342,8 +352,33 @@ class PageEmbeddableFieldsVectorIndexMixin(EmbeddableFieldsVectorIndexMixin):
 # ###########
 
 
+def camel_case(snake_str: str):
+    """Convert a snake_case string to CamelCase"""
+    parts = snake_str.split("_")
+    return "".join(*map(str.title, parts))
+
+
+def build_vector_index_base_for_storage_provider(
+    storage_provider_alias: str = "default",
+):
+    """Build a VectorIndex base class for a given storage provider alias.
+
+    e.g. If WAGATAIL_VECTOR_INDEX_STORAGE_PROVIDERS includes a provider with alias "default" referencing the PgvectorStorageProvider,
+    this function will return a class that is a subclass of PgvectorIndexMixin and VectorIndex."""
+
+    storage_provider = get_storage_provider(storage_provider_alias)
+    alias_camel = camel_case(storage_provider_alias)
+    return type(
+        f"{alias_camel}VectorIndex", (storage_provider.index_mixin, VectorIndex), {}
+    )
+
+
+# A VectorIndex built from whatever mixin belongs to the storage provider with the "default" alias
+DefaultStorageVectorIndex = build_vector_index_base_for_storage_provider("default")
+
+
 class GeneratedIndexMixin(models.Model):
-    """Mixin for Django models that automatically generates registers a VectorIndex for the model.
+    """Mixin for Django models that automatically generates and registers a VectorIndex for the model.
 
     The model can still have custom VectorIndex classes registered if needed."""
 
@@ -358,16 +393,17 @@ class GeneratedIndexMixin(models.Model):
         return f"{cls.__name__}Index"
 
     @classmethod
-    def build_vector_index_class(cls) -> type[VectorIndex]:
-        """Build a VectorIndex class for this model"""
+    def build_vector_index(cls) -> VectorIndex:
+        """Build a VectorIndex instance for this model"""
 
         class_list = ()
         # If the user has specified a custom `vector_index_class`, use that
         if cls.vector_index_class:
             class_list = (cls.vector_index_class,)
         else:
-            vector_backend = get_vector_backend("default")
-            base_cls = vector_backend.index_class
+            storage_provider = get_storage_provider("default")
+            base_cls = VectorIndex
+            storage_mixin_cls = storage_provider.index_mixin
             # If the model is a Wagtail Page, use a special PageEmbeddableFieldsVectorIndexMixin
             if issubclass(cls, Page):
                 mixin_cls = PageEmbeddableFieldsVectorIndexMixin
@@ -376,6 +412,7 @@ class GeneratedIndexMixin(models.Model):
                 mixin_cls = EmbeddableFieldsVectorIndexMixin
             class_list = (
                 mixin_cls,
+                storage_mixin_cls,
                 base_cls,
             )
 
@@ -388,13 +425,13 @@ class GeneratedIndexMixin(models.Model):
                     "querysets": [cls.objects.all()],
                 },
             ),
-        )
+        )()
 
     @classproperty
     def vector_index(cls):
         """Get a vector index instance for this model"""
 
-        return registry[cls.generated_index_class_name()]()
+        return registry[cls.generated_index_class_name()]
 
 
 class VectorIndexedMixin(EmbeddableFieldsMixin, GeneratedIndexMixin, models.Model):
@@ -412,4 +449,4 @@ def register_indexed_models():
         if issubclass(model, GeneratedIndexMixin) and not model._meta.abstract
     ]
     for model in indexed_models:
-        registry.register()(model.build_vector_index_class())
+        registry.register_index(model.build_vector_index())
