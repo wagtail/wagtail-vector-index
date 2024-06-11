@@ -57,7 +57,7 @@ testing = [
     "wagtail-factories>=4.1.0",
     "factory-boy>=3.3.0",
     "coverage>=7.0,<8.0",
-    "pyright>=1.1.345",
+    "pyright>=1.1.366",
     "django-types>=0.19.1",
 ]
 docs = [
@@ -103,7 +103,7 @@ ignore = ["TRY003", "E501", "RUF012"]
 include = ["src/**"]
 exclude = [
     "**/migrations",
-    "src/wagtail_vector_index/backends/qdrant/backend.py",
+    "src/wagtail_vector_index/storage/qdrant/provider.py",
 ]
 pythonVersion = "3.11"
 typeCheckingMode = "basic"
