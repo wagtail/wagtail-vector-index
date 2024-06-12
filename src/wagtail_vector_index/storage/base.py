@@ -56,7 +56,7 @@ class StorageProvider(Generic[ConfigClass, IndexMixin]):
             ) from e
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
-        if not getattr(cls, "config_class"):  # noqa: B009
+        if not hasattr(cls, "config_class"):
             raise AttributeError(
                 f"Storage provider {cls.__name__} must specify a `config_class` class \
                     attribute"
