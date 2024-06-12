@@ -1,10 +1,5 @@
 from collections.abc import Generator, Iterable, MutableSequence, Sequence
-from typing import (
-    ClassVar,
-    Optional,
-    TypeVar,
-    cast,
-)
+from typing import TYPE_CHECKING, ClassVar, Optional, TypeVar, cast
 
 from django.apps import apps
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
@@ -26,7 +21,11 @@ from wagtail_vector_index.ai_utils.text_splitting.naive import (
 )
 from wagtail_vector_index.ai_utils.types import TextSplitterProtocol
 from wagtail_vector_index.storage import get_storage_provider, registry
-from wagtail_vector_index.storage.base import Document, VectorIndex
+from wagtail_vector_index.storage.base import (
+    Document,
+    DocumentRetrievalVectorIndexMixinProtocol,
+    VectorIndex,
+)
 from wagtail_vector_index.storage.exceptions import IndexedTypeFromDocumentError
 
 """ Everything related to indexing Django models is in this file.
@@ -294,12 +293,16 @@ class EmbeddableFieldsDocumentConverter:
 # VectorIndex mixins which add model-specific behaviour
 # ###########
 
+if TYPE_CHECKING:
+    MixinBase = DocumentRetrievalVectorIndexMixinProtocol
+else:
+    MixinBase = object
 
-class EmbeddableFieldsVectorIndexMixin:
+
+class EmbeddableFieldsVectorIndexMixin(MixinBase):
     """A Mixin for VectorIndex which indexes the results of querysets of EmbeddableFieldsMixin models"""
 
     querysets: ClassVar[Sequence[models.QuerySet]]
-    embedding_backend: BaseEmbeddingBackend
 
     def _get_querysets(self) -> Sequence[models.QuerySet]:
         return self.querysets
@@ -327,7 +330,7 @@ class EmbeddableFieldsVectorIndexMixin:
             # by the caller
             all_documents += list(
                 self.get_converter().bulk_to_documents(
-                    instances, embedding_backend=self.embedding_backend
+                    instances, embedding_backend=self.get_embedding_backend()
                 )
             )
         return all_documents

@@ -94,6 +94,9 @@ DJANGO_SETTINGS_MODULE = "testapp.settings"
 pythonpath = ["./", "./tests"]
 log_level = "INFO"
 asyncio_mode = "auto"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
 
 [tool.ruff]
 select = ["F", "E", "C90", "I", "B", "DJ", "RUF", "TRY", "C4", "TCH005", "TCH004"]

@@ -17,6 +17,13 @@ ConfigClass = TypeVar("ConfigClass")
 IndexMixin = TypeVar("IndexMixin")
 
 
+class DocumentRetrievalVectorIndexMixinProtocol(Protocol):
+    """Protocol which defines the minimum requirements for a VectorIndex to be used with a mixin that provides
+    document retrieval/generation"""
+
+    def get_embedding_backend(self) -> BaseEmbeddingBackend: ...
+
+
 class StorageVectorIndexMixinProtocol(Protocol[StorageProviderClass]):
     """Protocol which defines the minimum requirements for a VectorIndex to be used with a StorageProvider mixin."""
 
@@ -107,14 +114,8 @@ class VectorIndex(Generic[ConfigClass]):
     # The alias of the storage provider specified in WAGTAIL_VECTOR_INDEX_STORAGE_PROVIDERS
     storage_provider_alias: ClassVar[str] = "default"
 
-    def __init__(
-        self,
-        *args,
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-
-        self.embedding_backend = get_embedding_backend(self.embedding_backend_alias)
+    def get_embedding_backend(self) -> BaseEmbeddingBackend:
+        return get_embedding_backend(self.embedding_backend_alias)
 
     def get_documents(self) -> Iterable[Document]:
         raise NotImplementedError
@@ -129,7 +130,7 @@ class VectorIndex(Generic[ConfigClass]):
     ) -> QueryResponse:
         """Perform a natural language query against the index, returning a QueryResponse containing the natural language response, and a list of sources"""
         try:
-            query_embedding = next(self.embedding_backend.embed([query]))
+            query_embedding = next(self.get_embedding_backend().embed([query]))
         except StopIteration as e:
             raise ValueError("No embeddings were generated for the given query.") from e
 
@@ -157,7 +158,7 @@ class VectorIndex(Generic[ConfigClass]):
         """Find similar objects to the given object"""
         converter = self.get_converter()
         object_documents: Generator[Document, None, None] = converter.to_documents(
-            object, embedding_backend=self.embedding_backend
+            object, embedding_backend=self.get_embedding_backend()
         )
         similar_documents = []
         for document in object_documents:
@@ -171,7 +172,7 @@ class VectorIndex(Generic[ConfigClass]):
     def search(self, query: str, *, limit: int = 5) -> list:
         """Perform a search against the index, returning only a list of matching sources"""
         try:
-            query_embedding = next(self.embedding_backend.embed([query]))
+            query_embedding = next(self.get_embedding_backend().embed([query]))
         except StopIteration as e:
             raise ValueError("No embeddings were generated for the given query.") from e
         similar_documents = self.similarity_search(query_embedding, limit=limit)
