@@ -136,6 +136,10 @@ class VectorIndex(Generic[ConfigClass]):
 
         similar_documents = self.get_similar_documents(query_embedding)
 
+        # Perform the similarity search and convert the generator to a list
+        similar_documents_generator = self.backend_index.similarity_search(query_embedding)
+        similar_documents = list(similar_documents_generator)
+
         sources = self._deduplicate_list(
             self.get_converter().bulk_from_documents(similar_documents)
         )
