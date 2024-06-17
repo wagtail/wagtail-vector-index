@@ -12,7 +12,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.core import checks
 from django.core.exceptions import FieldDoesNotExist
 from django.db import models, transaction
-from django.utils.functional import classproperty  # type: ignore
+from django.db.models.base import ModelBase
+from django.utils.functional import cached_property, classproperty  # type: ignore
 from wagtail.models import Page
 from wagtail.query import PageQuerySet
 from wagtail.search.index import BaseField
@@ -28,6 +29,7 @@ from wagtail_vector_index.ai_utils.types import TextSplitterProtocol
 from wagtail_vector_index.index import registry
 from wagtail_vector_index.index.base import Document, VectorIndex
 from wagtail_vector_index.index.exceptions import IndexedTypeFromDocumentError
+from wagtail_vector_index.utils import get_base_concrete_model
 
 """ Everything related to indexing Django models is in this file.
 
@@ -296,27 +298,37 @@ class EmbeddableFieldsVectorIndex(VectorIndex):
     def get_converter_class(self) -> type[EmbeddableFieldsDocumentConverter]:
         return EmbeddableFieldsDocumentConverter
 
-    def get_converter(self) -> EmbeddableFieldsDocumentConverter:
-        queryset_models = [qs.model for qs in self._get_querysets()]
-        all_the_same = len(set(queryset_models)) == 1
-        if not all_the_same:
-            raise ValueError(
-                "All querysets must be of the same model to use the default converter."
-            )
-        return self.get_converter_class()(queryset_models[0])
+    @cached_property
+    def base_concrete_model(self) -> ModelBase:
+        querysets = self._get_querysets()
+        first = get_base_concrete_model(querysets[0].model)
+        for queryset in querysets[1:]:
+            if get_base_concrete_model(queryset.model) is not first:
+                raise ValueError(
+                    f"{type(self).__name__} is configured to index content from models "
+                    "without a common concrete parent (e.g. Page). This is not currently "
+                    "supported."
+                )
+        return first
+
+    def get_converter(
+        self, model_class: ModelBase | None = None
+    ) -> EmbeddableFieldsDocumentConverter:
+        return self.get_converter_class()(model_class or self.base_concrete_model)
 
     def get_documents(self) -> Iterable[Document]:
         querysets = self._get_querysets()
         all_documents = []
 
         for queryset in querysets:
-            instances = queryset.prefetch_related("embeddings")
+            converter = self.get_converter(queryset.model)
             # We need to consume the generator here to ensure that the
             # Embedding models are created, even if it is not consumed
             # by the caller
             all_documents += list(
-                self.get_converter().bulk_to_documents(
-                    instances, embedding_backend=self.embedding_backend
+                converter.bulk_to_documents(
+                    queryset.prefetch_related("embeddings"),
+                    embedding_backend=self.embedding_backend,
                 )
             )
         return all_documents
