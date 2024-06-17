@@ -63,7 +63,7 @@ NOTE: Where `vector_index_class` is set on a subclass of `VectorIndexedMixin` th
 
 ### Indexing across models
 
-One of the things you might want to do with a custom index is query across multiple models, or on a subset of models. If the models share a common concrete parent model (e.g. Wagtail's `Page` model), then they can acheived by included them together in a custom vector index.
+One of the things you might want to do with a custom index is query across multiple models, or on a subset of models. If the models share a common concrete parent model (e.g. Wagtail's `Page` model), then this can acheived by included them together in a custom vector index.
 
 To do this, override `querysets` or `_get_querysets()` on your `EmbeddableFieldsVectorIndex` class:
 
