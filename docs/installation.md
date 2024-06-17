@@ -32,7 +32,7 @@ settings file.
       INSTALLED_APPS = [
           # ...
           "wagtail_vector_index",
-          "wagtail_vector_index.backends.pgvector",
+          "wagtail_vector_index.storage.pgvector",
           # ...
       ]
       ```
