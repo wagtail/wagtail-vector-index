@@ -291,12 +291,15 @@ class EmbeddableFieldsVectorIndex(VectorIndex):
     """A VectorIndex which indexes the results of querysets of EmbeddableFieldsMixin models"""
 
     querysets: ClassVar[Sequence[models.QuerySet]]
+    converter_class = type[EmbeddableFieldsDocumentConverter] = (
+        EmbeddableFieldsDocumentConverter
+    )
 
     def _get_querysets(self) -> Sequence[models.QuerySet]:
         return self.querysets
 
     def get_converter_class(self) -> type[EmbeddableFieldsDocumentConverter]:
-        return EmbeddableFieldsDocumentConverter
+        return self.converter_class
 
     @cached_property
     def base_concrete_model(self) -> ModelBase:
