@@ -80,6 +80,7 @@ class MyEmbeddableFieldsVectorIndex(EmbeddableFieldsVectorIndex):
 We're hoping to handle this automatically in the near future. But for now, you'll also need to override a couple of methods on your class to allow it to succesfully retrieve content for indexing. For example:
 
 ```python
+# indexes.py
 from wagtail.models import Page
 
 
