@@ -96,7 +96,8 @@ class MyEmbeddableFieldsVectorIndex(EmbeddableFieldsVectorIndex):
             converter = self.get_converter(model_class=queryset.model)
             documents = list(
                 converter.bulk_to_documents(
-                    queryset.prefetch_related("embeddings"), embedding_backend=self.embedding_backend
+                    queryset.prefetch_related("embeddings"),
+                    embedding_backend=self.embedding_backend,
                 )
             )
             all_documents.extend(documents)
