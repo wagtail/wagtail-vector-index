@@ -291,7 +291,7 @@ class EmbeddableFieldsVectorIndex(VectorIndex):
     """A VectorIndex which indexes the results of querysets of EmbeddableFieldsMixin models"""
 
     querysets: ClassVar[Sequence[models.QuerySet]]
-    converter_class = type[EmbeddableFieldsDocumentConverter] = (
+    converter_class: type[EmbeddableFieldsDocumentConverter] = (
         EmbeddableFieldsDocumentConverter
     )
 
