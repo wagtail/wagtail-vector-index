@@ -59,10 +59,11 @@ class MyPage(VectorIndexedMixin, Page):
     vector_index_class = MyEmbeddableFieldsVectorIndex
 ```
 
+NOTE: Where `vector_index_class` is set on a subclass of `VectorIndexedMixin` this way, the index will be registered with `wagtail-vector-index` automatically. In more complex cases, you may need to register your index class manually (read on for an example).
 
 ### Indexing across models
 
-One of the things you might want to do with a custom index is query across multiple models, or on a subset of models. To do this, models must share a common concrete parent model (e.g. Wagtail's `Page` model), then they can be included together in a custom vector index.
+One of the things you might want to do with a custom index is query across multiple models, or on a subset of models. If the models share a common concrete parent model (e.g. Wagtail's `Page` model), then they can acheived by included them together in a custom vector index.
 
 To do this, override `querysets` or `_get_querysets()` on your `EmbeddableFieldsVectorIndex` class:
 
@@ -77,10 +78,11 @@ class MyEmbeddableFieldsVectorIndex(EmbeddableFieldsVectorIndex):
     ]
 ```
 
-We're hoping to handle this automatically in the near future. But for now, you'll also need to override a couple of methods on your class to allow it to succesfully retrieve content for indexing. For example:
+We're hoping to handle this automatically in the near future. But for now, you'll also need to override a couple of methods to allow the index to succesfully index content. For example:
 
 ```python
-# indexes.py
+# vector_index/indexes.py
+
 from wagtail.models import Page
 
 
@@ -106,9 +108,11 @@ class MyEmbeddableFieldsVectorIndex(EmbeddableFieldsVectorIndex):
         return all_documents
 ```
 
-Custom indexes need to be 'registered' with the `wagtail-vector-index` before they can be used. The best place to do this is in the `ready()` method of an `AppConfig` class within your project. You may find it helpful to save your custom index and any other related code to a new `vector_index` app in your project; in which case, `vector_index/apps.py` might look something like this:
+Indexes of this nature must be registered with `wagtail-vector-index` before they can be used. The best place to do this is in the `ready()` method of an `AppConfig` class within your project. You may find it helpful to save your custom index and any other related code to a new `vector_index` app in your project; in which case, `vector_index/apps.py` might look something like this:
 
 ```python
+# vector_index/apps.py
+
 from django.apps import AppConfig
 
 
@@ -122,7 +126,6 @@ class VectorIndexConfig(AppConfig):
         from .indexes import MyEmbeddableFieldsVectorIndex
 
         registry.register()(MyEmbeddableFieldsVectorIndex)
-
 ```
 
 Once populated (with the `update_vector_indexes` management command), these indexes can be queried just like an automatically generated index:
