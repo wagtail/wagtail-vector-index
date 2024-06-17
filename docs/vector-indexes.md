@@ -108,7 +108,7 @@ class MyEmbeddableFieldsVectorIndex(EmbeddableFieldsVectorIndex):
 
 Custom indexes need to be 'registered' with the `wagtail-vector-index` before they can be used. The best place to do this is in the `ready()` method of an `AppConfig` class within your project. You may find it helpful to save your custom index and any other related code to a new `vector_index` app in your project; in which case, `vector_index/apps.py` might look something like this:
 
-```
+```python
 from django.apps import AppConfig
 
 
