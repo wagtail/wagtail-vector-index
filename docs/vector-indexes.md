@@ -62,7 +62,7 @@ class MyPage(VectorIndexedMixin, Page):
 
 ### Indexing across models
 
-One of the things you might want to do with a custom index is query across multiple models, or on a subset of models. To do this, they need to be in a vector index together.
+One of the things you might want to do with a custom index is query across multiple models, or on a subset of models. To do this, models must share a common concrete parent model (e.g. Wagtail's `Page` model), then they can be included together in a custom vector index.
 
 To do this, override `querysets` or `_get_querysets()` on your `EmbeddableFieldsVectorIndex` class:
 
@@ -72,9 +72,55 @@ from wagtail_vector_index.index.models import EmbeddableFieldsVectorIndex
 
 class MyEmbeddableFieldsVectorIndex(EmbeddableFieldsVectorIndex):
     querysets = [
-        MyModel.objects.all(),
-        MyOtherModel.objects.filter(name__startswith="AI: "),
+        InformationPage.objects.all(),
+        BlogPage.objects.filter(name__startswith="AI: "),
     ]
+```
+
+We're hoping to handle this automatically in the near future. But for now, you'll also need to override a couple of methods on your class to allow it to succesfully retrieve content for indexing. For example:
+
+```python
+from wagtail.models import Page
+
+
+class MyEmbeddableFieldsVectorIndex(EmbeddableFieldsVectorIndex):
+    ...
+
+    def get_converter(self, model_class=None):
+        return self.get_converter_class()(model_class or Page)
+
+    def get_documents(self):
+        all_documents = []
+
+        for queryset in self._get_querysets():
+            converter = self.get_converter(model_class=queryset.model)
+            documents = list(
+                converter.bulk_to_documents(
+                    queryset.prefetch_related("embeddings"), embedding_backend=self.embedding_backend
+                )
+            )
+            all_documents.extend(documents)
+
+        return all_documents
+```
+
+Custom indexes need to be 'registered' with the `wagtail-vector-index` before they can be used. The best place to do this is in the `ready()` method of an `AppConfig` class within your project. You may find it helpful to save your custom index and any other related code to a new `vector_index` app in your project; in which case, `vector_index/apps.py` might look something like this:
+
+```
+from django.apps import AppConfig
+
+
+class VectorIndexConfig(AppConfig):
+    default_auto_field = "django.db.models.AutoField"
+    name = "yourprojectname.vector_index"
+
+    def ready(self):
+        from wagtail_vector_index.index import registry
+
+        from .indexes import MyEmbeddableFieldsVectorIndex
+
+        registry.register()(MyEmbeddableFieldsVectorIndex)
+
 ```
 
 Once populated (with the `update_vector_indexes` management command), these indexes can be queried just like an automatically generated index:
