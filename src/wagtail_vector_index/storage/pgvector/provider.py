@@ -73,7 +73,7 @@ class PgvectorIndexMixin(MixinBase):
     def clear(self):
         self._get_queryset().delete()
 
-    def similarity_search(
+    def get_similar_documents(
         self, query_vector, *, limit: int = 5
     ) -> Generator[Document, None, None]:
         for pgvector_embedding in (

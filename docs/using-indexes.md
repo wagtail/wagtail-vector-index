@@ -25,10 +25,10 @@ Behind the scenes, this:
 
 ### Getting similar content
 
-The `similar` index method can be used to find model instances that are similar to another instance:
+The `find_similar` index method can be used to find model instances that are similar to another instance:
 
 ```python
-index.similar(my_model_instance)
+index.find_similar(my_model_instance)
 
 [MyPage(1), MyPage(2)]
 ```

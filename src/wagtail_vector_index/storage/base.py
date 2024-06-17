@@ -134,7 +134,7 @@ class VectorIndex(Generic[ConfigClass]):
         except StopIteration as e:
             raise ValueError("No embeddings were generated for the given query.") from e
 
-        similar_documents = self.similarity_search(query_embedding)
+        similar_documents = self.get_similar_documents(query_embedding)
 
         sources = self._deduplicate_list(
             self.get_converter().bulk_from_documents(similar_documents)
@@ -154,7 +154,9 @@ class VectorIndex(Generic[ConfigClass]):
         response = chat_backend.chat(messages=messages)
         return QueryResponse(response=response.choices[0], sources=sources)
 
-    def similar(self, object, *, include_self: bool = False, limit: int = 5) -> list:
+    def find_similar(
+        self, object, *, include_self: bool = False, limit: int = 5
+    ) -> list:
         """Find similar objects to the given object"""
         converter = self.get_converter()
         object_documents: Generator[Document, None, None] = converter.to_documents(
@@ -162,7 +164,9 @@ class VectorIndex(Generic[ConfigClass]):
         )
         similar_documents = []
         for document in object_documents:
-            similar_documents += self.similarity_search(document.vector, limit=limit)
+            similar_documents += self.get_similar_documents(
+                document.vector, limit=limit
+            )
 
         return self._deduplicate_list(
             converter.bulk_from_documents(similar_documents),
@@ -175,7 +179,7 @@ class VectorIndex(Generic[ConfigClass]):
             query_embedding = next(self.get_embedding_backend().embed([query]))
         except StopIteration as e:
             raise ValueError("No embeddings were generated for the given query.") from e
-        similar_documents = self.similarity_search(query_embedding, limit=limit)
+        similar_documents = self.get_similar_documents(query_embedding, limit=limit)
 
         # Eliminate duplicates of the same objects.
         return self._deduplicate_list(
@@ -218,7 +222,7 @@ class VectorIndex(Generic[ConfigClass]):
     def delete(self, *, document_ids: Sequence[str]) -> None:
         raise NotImplementedError
 
-    def similarity_search(
+    def get_similar_documents(
         self, query_vector: Sequence[float], *, limit: int = 5
     ) -> Generator[Document, None, None]:
         raise NotImplementedError

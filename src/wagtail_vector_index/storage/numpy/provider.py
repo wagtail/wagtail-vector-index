@@ -34,7 +34,7 @@ class NumpyIndexMixin(MixinBase):
     def delete(self, *, document_ids: Sequence[str]) -> None:
         pass
 
-    def similarity_search(
+    def get_similar_documents(
         self, query_vector: Sequence[float], *, limit: int = 5
     ) -> Generator[Document, None, None]:
         similarities = []

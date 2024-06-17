@@ -126,7 +126,7 @@ class MyEmbeddableFieldsVectorIndex(
 
 ### How Vector Indexes are structured
 
-A simple vector index implements three public methods: `search`, `query`, and `similar`.
+A simple vector index implements three public methods: `search`, `query`, and `find_similar`.
 
 To make these work in practice, a vector index also needs to:
 

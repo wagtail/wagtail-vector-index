@@ -62,7 +62,7 @@ class WeaviateIndexMixin(MixinBase):
         # TODO: Handle deletion
         raise NotImplementedError
 
-    def similarity_search(
+    def get_similar_documents(
         self, query_vector: Sequence[float], *, limit: int = 5
     ) -> Generator[Document, None, None]:
         near_vector = {

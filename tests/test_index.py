@@ -86,11 +86,11 @@ def test_similar_returns_no_duplicates(mocker):
     case = unittest.TestCase()
 
     # We expect 9 results without the page itself.
-    actual = vector_index.similar(pages[0], limit=100, include_self=False)
+    actual = vector_index.find_similar(pages[0], limit=100, include_self=False)
     case.assertCountEqual(actual, pages[1:])
 
     # We expect 10 results with the page itself.
-    actual = vector_index.similar(pages[0], limit=100, include_self=True)
+    actual = vector_index.find_similar(pages[0], limit=100, include_self=True)
     case.assertCountEqual(actual, pages)
 
 
