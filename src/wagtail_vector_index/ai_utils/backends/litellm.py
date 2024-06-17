@@ -60,7 +60,7 @@ class LiteLLMStreamingAIResponse(AIStreamingResponse):
         next_response = next(self.stream_wrapper)
         index = next_response.choices[0].index
         choice = next_response.choices[0]
-        assert isinstance(choice, litellm.utils.StreamingChoices)
+        assert isinstance(choice, litellm.utils.StreamingChoices)  # type: ignore
         content = choice.delta.content
         assert isinstance(content, str)
 
