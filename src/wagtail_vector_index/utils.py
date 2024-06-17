@@ -1,7 +1,7 @@
-from django.db.models.base import ModelBase
+from django.db.models import Model
 
 
-def get_base_concrete_model(model_class: ModelBase) -> ModelBase:
+def get_base_concrete_model(model_class: type[Model]) -> type[Model]:
     """
     For a model that uses multi-table-inheritance, this returns the model
     that contains the primary key. For example, for any Wagtail page object,

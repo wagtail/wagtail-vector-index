@@ -12,7 +12,6 @@ from django.contrib.contenttypes.models import ContentType
 from django.core import checks
 from django.core.exceptions import FieldDoesNotExist
 from django.db import models, transaction
-from django.db.models.base import ModelBase
 from django.utils.functional import cached_property, classproperty  # type: ignore
 from wagtail.models import Page
 from wagtail.query import PageQuerySet
@@ -302,7 +301,7 @@ class EmbeddableFieldsVectorIndex(VectorIndex):
         return self.converter_class
 
     @cached_property
-    def base_concrete_model(self) -> ModelBase:
+    def base_concrete_model(self) -> type[models.Model]:
         querysets = self._get_querysets()
         first = get_base_concrete_model(querysets[0].model)
         for queryset in querysets[1:]:
@@ -315,7 +314,7 @@ class EmbeddableFieldsVectorIndex(VectorIndex):
         return first
 
     def get_converter(
-        self, model_class: ModelBase | None = None
+        self, model_class: type[models.Model] | None = None
     ) -> EmbeddableFieldsDocumentConverter:
         return self.get_converter_class()(model_class or self.base_concrete_model)
 
