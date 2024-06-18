@@ -4,7 +4,6 @@ from wagtail.fields import RichTextField
 from wagtail.models import Page
 from wagtail_vector_index.storage.models import (
     DefaultStorageVectorIndex,
-    EmbeddableFieldsDocumentConverter,
     EmbeddingField,
     PageEmbeddableFieldsVectorIndexMixin,
     VectorIndexedMixin,
@@ -42,9 +41,6 @@ class MultiplePageVectorIndex(
     PageEmbeddableFieldsVectorIndexMixin, DefaultStorageVectorIndex
 ):
     querysets = [ExamplePage.objects.all(), DifferentPage.objects.all()]  # type: ignore
-
-    def get_converter(self):
-        return EmbeddableFieldsDocumentConverter(Page)
 
 
 registry.register_index(MultiplePageVectorIndex())
