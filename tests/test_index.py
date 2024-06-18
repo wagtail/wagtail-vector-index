@@ -1,9 +1,10 @@
 import unittest
 
 import pytest
-from factories import ExamplePageFactory
+from factories import DifferentPageFactory, ExamplePageFactory
 from faker import Faker
 from testapp.models import ExamplePage
+from wagtail.models import Page
 from wagtail_vector_index.storage import (
     registry,
 )
@@ -66,6 +67,28 @@ def test_index_get_documents_returns_at_least_one_document_per_page():
     found_pages = {document.metadata.get("object_id") for document in documents}
 
     assert found_pages == {str(page.pk) for page in pages}
+
+
+@pytest.mark.django_db
+def test_index_with_multiple_models():
+    example_pages = ExamplePageFactory.create_batch(5)
+    different_pages = DifferentPageFactory.create_batch(5)
+    index = registry["MultiplePageVectorIndex"]
+    index.rebuild_index()
+    assert index.base_concrete_model is Page
+
+    example_pages_ids = {str(page.pk) for page in example_pages}
+    different_page_ids = {str(page.pk) for page in different_pages}
+    found_page_ids = {
+        document.metadata.get("object_id") for document in index.get_documents()
+    }
+
+    assert found_page_ids == example_pages_ids.union(different_page_ids)
+
+    similar_result = index.find_similar(ExamplePage.objects.first(), limit=5)
+    assert len(similar_result) == 5
+    for p in similar_result:
+        assert type(p) is Page
 
 
 @pytest.mark.django_db
