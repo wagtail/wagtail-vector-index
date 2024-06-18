@@ -49,7 +49,7 @@ def use_mock_ai_backend(settings):
             "default": {
                 "CLASS": "conftest.EmbeddingMockBackend",
                 "CONFIG": {
-                    "MODEL_ID": "mock-chat",
+                    "MODEL_ID": "mock-embedding",
                     "TOKEN_LIMIT": 1024,
                     "EMBEDDING_OUTPUT_DIMENSIONS": 6,
                 },
@@ -59,7 +59,7 @@ def use_mock_ai_backend(settings):
             "default": {
                 "CLASS": "conftest.ChatMockBackend",
                 "CONFIG": {
-                    "MODEL_ID": "mock-embedding",
+                    "MODEL_ID": "mock-chat",
                     "TOKEN_LIMIT": 1024,
                 },
             }

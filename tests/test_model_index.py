@@ -2,8 +2,8 @@ import pytest
 from factories import ExamplePageFactory
 from faker import Faker
 from testapp.models import ExamplePage
-from wagtail_vector_index.index import registry
-from wagtail_vector_index.index.models import Embedding
+from wagtail_vector_index.storage import registry
+from wagtail_vector_index.storage.models import Embedding
 
 fake = Faker()
 
@@ -39,7 +39,7 @@ class TestIndexOperationsFromModel(IndexOperations):
 
 class TestIndexOperationsFromRegistry(IndexOperations):
     def get_index(self):
-        return registry["ExamplePageIndex"]()
+        return registry["ExamplePageIndex"]
 
 
 def test_rebuilding_model_index_creates_embeddings():

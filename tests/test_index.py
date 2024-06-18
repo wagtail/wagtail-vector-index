@@ -4,11 +4,11 @@ import pytest
 from factories import ExamplePageFactory
 from faker import Faker
 from testapp.models import ExamplePage
-from wagtail_vector_index.index import (
+from wagtail_vector_index.storage import (
     registry,
 )
-from wagtail_vector_index.index.base import VectorIndex
-from wagtail_vector_index.index.models import EmbeddingField
+from wagtail_vector_index.storage.base import VectorIndex
+from wagtail_vector_index.storage.models import EmbeddingField
 
 fake = Faker()
 
@@ -29,8 +29,8 @@ def test_indexed_model_has_vector_index():
 
 
 def test_register_custom_vector_index():
-    custom_index = type("MyVectorIndex", (VectorIndex,), {})
-    registry.register()(custom_index)
+    custom_index = type("MyVectorIndex", (VectorIndex,), {})()
+    registry.register_index(custom_index)
     assert registry["MyVectorIndex"] == custom_index
 
 
@@ -60,7 +60,7 @@ def test_checking_search_fields_errors_with_invalid_field(patch_embedding_fields
 @pytest.mark.django_db
 def test_index_get_documents_returns_at_least_one_document_per_page():
     pages = ExamplePageFactory.create_batch(10)
-    index = registry["ExamplePageIndex"]()
+    index = registry["ExamplePageIndex"]
     index.rebuild_index()
     documents = index.get_documents()
     found_pages = {document.metadata.get("object_id") for document in documents}
@@ -86,11 +86,11 @@ def test_similar_returns_no_duplicates(mocker):
     case = unittest.TestCase()
 
     # We expect 9 results without the page itself.
-    actual = vector_index.similar(pages[0], limit=100, include_self=False)
+    actual = vector_index.find_similar(pages[0], limit=100, include_self=False)
     case.assertCountEqual(actual, pages[1:])
 
     # We expect 10 results with the page itself.
-    actual = vector_index.similar(pages[0], limit=100, include_self=True)
+    actual = vector_index.find_similar(pages[0], limit=100, include_self=True)
     case.assertCountEqual(actual, pages)
 
 

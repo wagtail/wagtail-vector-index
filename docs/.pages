@@ -3,5 +3,5 @@ nav:
     - quick-start.md
     - using-indexes.md
     - vector-indexes.md
-    - vector-backends.md
+    - storage-providers.md
     - architecture.md

@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 
 
 class PgvectorConfig(AppConfig):
-    name = "wagtail_vector_index.backends.pgvector"
+    name = "wagtail_vector_index.storage.pgvector"
     verbose_name = _("pgvector")
     default_auto_field = "django.db.models.AutoField"
 

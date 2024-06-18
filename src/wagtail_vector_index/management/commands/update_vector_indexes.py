@@ -2,7 +2,7 @@ import inspect
 
 from django.core.management.base import BaseCommand
 
-from wagtail_vector_index.index import registry
+from wagtail_vector_index.storage import registry
 
 
 class Command(BaseCommand):
@@ -39,6 +39,6 @@ class Command(BaseCommand):
         if confirm == "yes":
             self.stdout.write("Rebuilding vector indexes")
             for _, index in registry:
-                index().rebuild_index()
+                index.rebuild_index()
         else:
             self.stdout.write("Index update cancelled")

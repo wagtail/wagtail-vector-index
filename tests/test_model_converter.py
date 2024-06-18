@@ -2,7 +2,7 @@ import pytest
 from factories import ExamplePageFactory
 from faker import Faker
 from testapp.models import ExamplePage
-from wagtail_vector_index.index.models import (
+from wagtail_vector_index.storage.models import (
     EmbeddableFieldsDocumentConverter,
     EmbeddingField,
 )

@@ -8,6 +8,6 @@ class WagtailVectorIndexAppConfig(AppConfig):
     default_auto_field = "django.db.models.AutoField"
 
     def ready(self):
-        from wagtail_vector_index.index.models import register_indexed_models
+        from wagtail_vector_index.storage.models import register_indexed_models
 
         register_indexed_models()

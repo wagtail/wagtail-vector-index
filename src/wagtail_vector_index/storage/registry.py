@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Type
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .base import VectorIndex
@@ -8,16 +8,12 @@ class VectorIndexRegistry:
     """A registry to keep track of all the VectorIndex classes that have been registered."""
 
     def __init__(self):
-        self._registry: dict[str, Type["VectorIndex"]] = {}
+        self._registry: dict[str, "VectorIndex"] = {}
 
-    def register(self):
-        def decorator(cls: Type["VectorIndex"]):
-            self._registry[cls.__name__] = cls
-            return cls
+    def register_index(self, index: "VectorIndex"):
+        self._registry[type(index).__name__] = index
 
-        return decorator
-
-    def __getitem__(self, key: str) -> Type["VectorIndex"]:
+    def __getitem__(self, key: str) -> "VectorIndex":
         return self._registry[key]
 
     def __iter__(self):
