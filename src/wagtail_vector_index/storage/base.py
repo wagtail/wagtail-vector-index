@@ -134,11 +134,7 @@ class VectorIndex(Generic[ConfigClass]):
         except StopIteration as e:
             raise ValueError("No embeddings were generated for the given query.") from e
 
-        similar_documents = self.get_similar_documents(query_embedding)
-
-        # Perform the similarity search and convert the generator to a list
-        similar_documents_generator = self.backend_index.similarity_search(query_embedding)
-        similar_documents = list(similar_documents_generator)
+        similar_documents = list(self.get_similar_documents(query_embedding))
 
         sources = self._deduplicate_list(
             self.get_converter().bulk_from_documents(similar_documents)
