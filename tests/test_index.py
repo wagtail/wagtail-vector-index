@@ -94,6 +94,24 @@ def test_similar_returns_no_duplicates(mocker):
     case.assertCountEqual(actual, pages)
 
 
+@pytest.mark.django_db
+def test_query_passes_sources_to_backend(mocker):
+    ExamplePageFactory.create_batch(2)
+    index = ExamplePage.vector_index
+    documents = index.get_documents()[:2]
+
+    def get_similar_documents(query_embedding, limit=0):
+        yield from documents
+
+    query_mock = mocker.patch("conftest.ChatMockBackend.chat")
+    expected_content = "\n".join([doc.metadata["content"] for doc in documents])
+    similar_documents_mock = mocker.patch.object(index, "get_similar_documents")
+    similar_documents_mock.side_effect = get_similar_documents
+    index.query("")
+    first_call_messages = query_mock.call_args.kwargs["messages"]
+    assert first_call_messages[1] == {"content": expected_content, "role": "system"}
+
+
 DEDUPLICATE_LIST_TESTDATA = [
     pytest.param([3, 1, 1, 2], None, [3, 1, 2]),
     pytest.param([3, 1, 1, 2], [], [3, 1, 2]),
