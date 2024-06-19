@@ -3,8 +3,7 @@ import unittest
 import pytest
 from factories import DifferentPageFactory, ExamplePageFactory
 from faker import Faker
-from testapp.models import ExamplePage
-from wagtail.models import Page
+from testapp.models import DifferentPage, ExamplePage
 from wagtail_vector_index.storage import (
     registry,
 )
@@ -75,20 +74,24 @@ def test_index_with_multiple_models():
     different_pages = DifferentPageFactory.create_batch(5)
     index = registry["MultiplePageVectorIndex"]
     index.rebuild_index()
-    assert index.base_concrete_model is Page
 
     example_pages_ids = {str(page.pk) for page in example_pages}
     different_page_ids = {str(page.pk) for page in different_pages}
     found_page_ids = {
-        document.metadata.get("object_id") for document in index.get_documents()
+        document.metadata["object_id"] for document in index.get_documents()
     }
 
     assert found_page_ids == example_pages_ids.union(different_page_ids)
 
-    similar_result = index.find_similar(ExamplePage.objects.first(), limit=5)
-    assert len(similar_result) == 5
+    similar_result = list(index.find_similar(DifferentPage.objects.first()))
+    assert len(similar_result) > 1
     for p in similar_result:
-        assert type(p) is Page
+        assert isinstance(p, (ExamplePage, DifferentPage))
+
+    search_result = list(index.search("test"))
+    assert len(search_result) > 1
+    for p in search_result:
+        assert isinstance(p, (ExamplePage, DifferentPage))
 
 
 @pytest.mark.django_db
@@ -131,18 +134,3 @@ def test_query_passes_sources_to_backend(mocker):
     index.query("")
     first_call_messages = query_mock.call_args.kwargs["messages"]
     assert first_call_messages[1] == {"content": expected_content, "role": "system"}
-
-
-DEDUPLICATE_LIST_TESTDATA = [
-    pytest.param([3, 1, 1, 2], None, [3, 1, 2]),
-    pytest.param([3, 1, 1, 2], [], [3, 1, 2]),
-    pytest.param([67, 333, 50, 10, 2, 2, 3, 333], [2], [67, 333, 50, 10, 3]),
-    pytest.param([67, 333, 50, 10, 2, 2, 3, 333], [2, 3], [67, 333, 50, 10]),
-]
-
-
-@pytest.mark.parametrize("input_list,exclusions,expected", DEDUPLICATE_LIST_TESTDATA)
-def test_deduplicate_list(input_list, exclusions, expected):
-    vector_index = ExamplePage.vector_index
-
-    assert vector_index._deduplicate_list(input_list, exclusions=exclusions)
