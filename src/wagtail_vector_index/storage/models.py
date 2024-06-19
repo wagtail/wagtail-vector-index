@@ -1,3 +1,4 @@
+from collections import defaultdict
 from collections.abc import Generator, Iterable, MutableSequence, Sequence
 from typing import TYPE_CHECKING, ClassVar, Optional, TypeVar, cast
 
@@ -170,15 +171,57 @@ class EmbeddableFieldsMixin(models.Model):
 IndexedType = TypeVar("IndexedType")
 
 
-class EmbeddableFieldsDocumentConverter:
+class DocumentToModelMixin:
+    """A mixin for DocumentConverter classes that need to efficiently convert Documents
+    into model instances of the relevant type.
+    """
+
+    @staticmethod
+    def _model_class_from_ctid(id: str) -> type[models.Model]:
+        ct = ContentType.objects.get_for_id(int(id))
+        model_class = ct.model_class()
+        if model_class is None:
+            raise ValueError(f"Failed to find model class for {ct!r}")
+        return model_class
+
+    def from_document(self, document: Document) -> models.Model:
+        model_class = self._model_class_from_ctid(document.metadata["content_type_id"])
+        try:
+            return model_class.objects.filter(pk=document.metadata["object_id"]).get()
+        except model_class.DoesNotExist as e:
+            raise IndexedTypeFromDocumentError("No object found for document") from e
+
+    def bulk_from_documents(
+        self, documents: Iterable[Document]
+    ) -> Generator[models.Model, None, None]:
+        ids_by_content_type = defaultdict(list)
+        for d in documents:
+            ids_by_content_type[d.metadata["content_type_id"]].append(
+                d.metadata["object_id"]
+            )
+
+        objects_by_key = {}
+        for content_type_id, ids in ids_by_content_type.items():
+            model_class = self._model_class_from_ctid(content_type_id)
+            model_objects = model_class.objects.filter(pk__in=ids)
+            objects_by_key.update(
+                {(content_type_id, str(obj.pk)): obj for obj in model_objects}
+            )
+
+        seen_keys = set()  # de-dupe as we go
+        for d in documents:
+            key = (d.metadata["content_type_id"], d.metadata["object_id"])
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            yield objects_by_key[key]
+
+
+class EmbeddableFieldsDocumentConverter(DocumentToModelMixin):
     """Implementation of DocumentConverter that knows how to convert a model instance using the
     EmbeddableFieldsMixin to and from a Document.
 
     Stores and retrieves embeddings from an Embedding model."""
-
-    def __init__(self, base_model: type[models.Model]):
-        # The model that this converter will convert Documents back to
-        self.base_model = base_model
 
     def _get_split_content(
         self, object: EmbeddableFieldsMixin, *, chunk_size: int
@@ -263,15 +306,6 @@ class EmbeddableFieldsDocumentConverter:
         ):
             yield embedding.to_document()
 
-    def from_document(self, document: Document) -> models.Model:
-        if obj := self.base_model.objects.filter(
-            pk=document.metadata["object_id"],
-            content_type=document.metadata["content_type_id"],
-        ).first():
-            return obj
-        else:
-            raise IndexedTypeFromDocumentError("No object found for document")
-
     def bulk_to_documents(
         self,
         objects: Iterable[EmbeddableFieldsMixin],
@@ -281,13 +315,6 @@ class EmbeddableFieldsDocumentConverter:
         # TODO: Implement a more efficient bulk embedding approach
         for object in objects:
             yield from self.to_documents(object, embedding_backend=embedding_backend)
-
-    def bulk_from_documents(
-        self, documents: Iterable[Document]
-    ) -> Generator[models.Model, None, None]:
-        # TODO: Implement a more efficient approach
-        for document in documents:
-            yield self.from_document(document)
 
 
 # ###########
@@ -305,41 +332,26 @@ class EmbeddableFieldsVectorIndexMixin(MixinBase):
 
     querysets: ClassVar[Sequence[models.QuerySet]]
 
-    @cached_property
-    def base_concrete_model(self) -> type[models.Model]:
-        querysets = self._get_querysets()
-        first = get_base_concrete_model(querysets[0].model)
-        for queryset in querysets[1:]:
-            if get_base_concrete_model(queryset.model) is not first:
-                raise ValueError(
-                    f"{type(self).__name__} is configured to index content from models "
-                    "without a common concrete parent (e.g. Page), which is not supported."
-                )
-        return first
-
     def _get_querysets(self) -> Sequence[models.QuerySet]:
         return self.querysets
 
     def get_converter_class(self) -> type[EmbeddableFieldsDocumentConverter]:
         return EmbeddableFieldsDocumentConverter
 
-    def get_converter(
-        self, model_class: type[models.Model] | None = None
-    ) -> EmbeddableFieldsDocumentConverter:
-        return self.get_converter_class()(model_class or self.base_concrete_model)
+    def get_converter(self) -> EmbeddableFieldsDocumentConverter:
+        return self.get_converter_class()()
 
     def get_documents(self) -> Iterable[Document]:
         querysets = self._get_querysets()
         all_documents = []
 
         for queryset in querysets:
-            converter = self.get_converter(queryset.model)
             instances = queryset.prefetch_related("embeddings")
             # We need to consume the generator here to ensure that the
             # Embedding models are created, even if it is not consumed
             # by the caller
             all_documents += list(
-                converter.bulk_to_documents(
+                self.get_converter().bulk_to_documents(
                     instances, embedding_backend=self.get_embedding_backend()
                 )
             )
@@ -377,7 +389,8 @@ def build_vector_index_base_for_storage_provider(
     """Build a VectorIndex base class for a given storage provider alias.
 
     e.g. If WAGATAIL_VECTOR_INDEX_STORAGE_PROVIDERS includes a provider with alias "default" referencing the PgvectorStorageProvider,
-    this function will return a class that is a subclass of PgvectorIndexMixin and VectorIndex."""
+    this function will return a class that is a subclass of PgvectorIndexMixin and VectorIndex.
+    """
 
     storage_provider = get_storage_provider(storage_provider_alias)
     alias_camel = camel_case(storage_provider_alias)

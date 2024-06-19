@@ -99,10 +99,8 @@ def test_similar_returns_no_duplicates(mocker):
     def gen_pages(cls, *args, **kwargs):
         yield from pages
 
-    mocker.patch.object(
-        vector_index.get_converter(),
-        "bulk_from_documents",
-        autospec=True,
+    mocker.patch(
+        "wagtail_vector_index.storage.models.EmbeddableFieldsDocumentConverter.bulk_from_documents",
         side_effect=gen_pages,
     )
 
