@@ -136,9 +136,7 @@ class VectorIndex(Generic[ConfigClass]):
 
         similar_documents = list(self.get_similar_documents(query_embedding))
 
-        sources = self._deduplicate_list(
-            self.get_converter().bulk_from_documents(similar_documents)
-        )
+        sources = list(self.get_converter().bulk_from_documents(similar_documents))
 
         merged_context = "\n".join(doc.metadata["content"] for doc in similar_documents)
         prompt = (
@@ -168,10 +166,11 @@ class VectorIndex(Generic[ConfigClass]):
                 document.vector, limit=limit
             )
 
-        return self._deduplicate_list(
-            converter.bulk_from_documents(similar_documents),
-            exclusions=None if include_self else [object],
-        )
+        return [
+            obj
+            for obj in converter.bulk_from_documents(similar_documents)
+            if include_self or obj != obj
+        ]
 
     def search(self, query: str, *, limit: int = 5) -> list:
         """Perform a search against the index, returning only a list of matching sources"""
@@ -180,11 +179,7 @@ class VectorIndex(Generic[ConfigClass]):
         except StopIteration as e:
             raise ValueError("No embeddings were generated for the given query.") from e
         similar_documents = self.get_similar_documents(query_embedding, limit=limit)
-
-        # Eliminate duplicates of the same objects.
-        return self._deduplicate_list(
-            self.get_converter().bulk_from_documents(similar_documents)
-        )
+        return list(self.get_converter().bulk_from_documents(similar_documents))
 
     # Utilities
 
@@ -195,18 +190,6 @@ class VectorIndex(Generic[ConfigClass]):
                 f"The storage provider with alias '{self.storage_provider_alias}' requires an index that uses the '{provider.index_mixin.__class__.__name__}' mixin."
             )
         return provider
-
-    @staticmethod
-    def _deduplicate_list(
-        objects: Iterable[object],
-        *,
-        exclusions: Iterable[object] | None = None,
-    ) -> list[object]:
-        if exclusions is None:
-            exclusions = []
-        # This code assumes that dict.fromkeys preserves order which is
-        # behavior of the Python language since version 3.7.
-        return list(dict.fromkeys(item for item in objects if item not in exclusions))
 
     # Backend-specific methods
 

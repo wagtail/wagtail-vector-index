@@ -8,7 +8,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core import checks
 from django.core.exceptions import FieldDoesNotExist
 from django.db import models, transaction
-from django.utils.functional import cached_property, classproperty  # type: ignore
+from django.utils.functional import classproperty  # type: ignore
 from wagtail.models import Page
 from wagtail.query import PageQuerySet
 from wagtail.search.index import BaseField
@@ -28,7 +28,6 @@ from wagtail_vector_index.storage.base import (
     VectorIndex,
 )
 from wagtail_vector_index.storage.exceptions import IndexedTypeFromDocumentError
-from wagtail_vector_index.utils import get_base_concrete_model
 
 """ Everything related to indexing Django models is in this file.
 
