@@ -193,13 +193,18 @@ class DocumentToModelMixin:
     def bulk_from_documents(
         self, documents: Iterable[Document]
     ) -> Generator[models.Model, None, None]:
-        ids_by_content_type = defaultdict(list)
-        for d in documents:
-            ids_by_content_type[d.metadata["content_type_id"]].append(
-                d.metadata["object_id"]
+        # Force evaluate generators to allow value to be reused
+        documents = tuple(documents)
+
+        ids_by_content_type: dict[str, list[str]] = defaultdict(list)
+        for doc in documents:
+            ids_by_content_type[doc.metadata["content_type_id"]].append(
+                doc.metadata["object_id"]
             )
 
-        objects_by_key = {}
+        # NOTE: (content_type_id, object_id) combo keys are required to
+        # reliably map data from multiple models
+        objects_by_key: dict[tuple[str, str], models.Model] = {}
         for content_type_id, ids in ids_by_content_type.items():
             model_class = self._model_class_from_ctid(content_type_id)
             model_objects = model_class.objects.filter(pk__in=ids)
@@ -208,8 +213,8 @@ class DocumentToModelMixin:
             )
 
         seen_keys = set()  # de-dupe as we go
-        for d in documents:
-            key = (d.metadata["content_type_id"], d.metadata["object_id"])
+        for doc in documents:
+            key = (doc.metadata["content_type_id"], doc.metadata["object_id"])
             if key in seen_keys:
                 continue
             seen_keys.add(key)
