@@ -3,9 +3,7 @@
 1. Install Wagtail Vector Index. You need to specify optional dependencies for vector
    backend and AI backends (for embeddings and chat models) and it will depend on your
    project's circumstances.
-    * At this point in time, Wagtail Vector Index only works with the
-     [llm package](https://llm.datasette.io/) for the AI backend so
-     you need to install it as an optional dependency `python -m pip install wagtail-vector-index[llm]`.
+    * Select an [AI provider backend](./ai-backends/index.md), we recommend starting with `LiteLLM`.
     * For the vector storage provider, you can choose between:
         - pgvector _(Postgres database extension)_:
           `python -m pip install wagtail-vector-index[pgvector]`
@@ -13,10 +11,10 @@
         - Weaviate: `python -m pip install wagtail-vector-index[weaviate]`
         - NumPy: `python -m pip install wagtail-vector-index[numpy]` *(not recommended
          for big databases or production applications due to scale issues)*
-        - Read more about storage providers on [the specific documentation page: **Storage Providers**](./storage-providerrs.md).
+        - Read more about storage providers on [the specific documentation page: **Storage Providers**](./storage-providers.md).
     * In your final installation call, you should comma-separate the optional
       dependencies you want to install, e.g.
-      `python -m pip install wagtail-vector-index[llm,pgvector]`.
+      `python -m pip install wagtail-vector-index[litellm,pgvector]`.
 2. Add `wagtail_vector_index` to your `INSTALLED_APPS` in your Django project
 settings file.
    ```python
@@ -38,13 +36,13 @@ settings file.
       ```
 3. Add an AI backend configuration to your Django project settings file. Wagtail
    Vector Index ships with a backend for the
-   [llm package](https://llm.datasette.io/), so you can configure it for OpenAI
-   as follows in your project settings.
+   [LiteLLM package](https://www.litellm.ai) which you configure for OpenAI in your project
+   settings:
     ```python
     WAGTAIL_VECTOR_INDEX = {
         "CHAT_BACKENDS": {
             "default": {
-                "CLASS": "wagtail_vector_index.ai_utils.backends.llm.LLMChatBackend",
+                "CLASS": "wagtail_vector_index.ai_utils.backends.litellm.LiteLLMChatBackend",
                 "CONFIG": {
                     "MODEL_ID": "gpt-3.5-turbo",
                 },
@@ -52,9 +50,9 @@ settings file.
         },
         "EMBEDDING_BACKENDS": {
             "default": {
-                "CLASS": "wagtail_vector_index.ai_utils.backends.llm.LLMEmbeddingBackend",
+                "CLASS": "wagtail_vector_index.ai_utils.backends.litellm.LiteLLMEmbeddingBackend",
                 "CONFIG": {
-                    "MODEL_ID": "ada-002",
+                    "MODEL_ID": "text-embedding-ada-002",
                 },
             }
         },
