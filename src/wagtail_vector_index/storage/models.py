@@ -1,3 +1,4 @@
+from collections import defaultdict
 from collections.abc import Generator, Iterable, MutableSequence, Sequence
 from typing import TYPE_CHECKING, ClassVar, Optional, TypeVar, cast
 
@@ -169,15 +170,62 @@ class EmbeddableFieldsMixin(models.Model):
 IndexedType = TypeVar("IndexedType")
 
 
-class EmbeddableFieldsDocumentConverter:
+class DocumentToModelMixin:
+    """A mixin for DocumentConverter classes that need to efficiently convert Documents
+    into model instances of the relevant type.
+    """
+
+    @staticmethod
+    def _model_class_from_ctid(id: str) -> type[models.Model]:
+        ct = ContentType.objects.get_for_id(int(id))
+        model_class = ct.model_class()
+        if model_class is None:
+            raise ValueError(f"Failed to find model class for {ct!r}")
+        return model_class
+
+    def from_document(self, document: Document) -> models.Model:
+        model_class = self._model_class_from_ctid(document.metadata["content_type_id"])
+        try:
+            return model_class.objects.filter(pk=document.metadata["object_id"]).get()
+        except model_class.DoesNotExist as e:
+            raise IndexedTypeFromDocumentError("No object found for document") from e
+
+    def bulk_from_documents(
+        self, documents: Iterable[Document]
+    ) -> Generator[models.Model, None, None]:
+        # Force evaluate generators to allow value to be reused
+        documents = tuple(documents)
+
+        ids_by_content_type: dict[str, list[str]] = defaultdict(list)
+        for doc in documents:
+            ids_by_content_type[doc.metadata["content_type_id"]].append(
+                doc.metadata["object_id"]
+            )
+
+        # NOTE: (content_type_id, object_id) combo keys are required to
+        # reliably map data from multiple models
+        objects_by_key: dict[tuple[str, str], models.Model] = {}
+        for content_type_id, ids in ids_by_content_type.items():
+            model_class = self._model_class_from_ctid(content_type_id)
+            model_objects = model_class.objects.filter(pk__in=ids)
+            objects_by_key.update(
+                {(content_type_id, str(obj.pk)): obj for obj in model_objects}
+            )
+
+        seen_keys = set()  # de-dupe as we go
+        for doc in documents:
+            key = (doc.metadata["content_type_id"], doc.metadata["object_id"])
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            yield objects_by_key[key]
+
+
+class EmbeddableFieldsDocumentConverter(DocumentToModelMixin):
     """Implementation of DocumentConverter that knows how to convert a model instance using the
     EmbeddableFieldsMixin to and from a Document.
 
     Stores and retrieves embeddings from an Embedding model."""
-
-    def __init__(self, base_model: type[models.Model]):
-        # The model that this converter will convert Documents back to
-        self.base_model = base_model
 
     def _get_split_content(
         self, object: EmbeddableFieldsMixin, *, chunk_size: int
@@ -262,15 +310,6 @@ class EmbeddableFieldsDocumentConverter:
         ):
             yield embedding.to_document()
 
-    def from_document(self, document: Document) -> models.Model:
-        if obj := self.base_model.objects.filter(
-            pk=document.metadata["object_id"],
-            content_type=document.metadata["content_type_id"],
-        ).first():
-            return obj
-        else:
-            raise IndexedTypeFromDocumentError("No object found for document")
-
     def bulk_to_documents(
         self,
         objects: Iterable[EmbeddableFieldsMixin],
@@ -280,13 +319,6 @@ class EmbeddableFieldsDocumentConverter:
         # TODO: Implement a more efficient bulk embedding approach
         for object in objects:
             yield from self.to_documents(object, embedding_backend=embedding_backend)
-
-    def bulk_from_documents(
-        self, documents: Iterable[Document]
-    ) -> Generator[models.Model, None, None]:
-        # TODO: Implement a more efficient approach
-        for document in documents:
-            yield self.from_document(document)
 
 
 # ###########
@@ -311,13 +343,7 @@ class EmbeddableFieldsVectorIndexMixin(MixinBase):
         return EmbeddableFieldsDocumentConverter
 
     def get_converter(self) -> EmbeddableFieldsDocumentConverter:
-        queryset_models = [qs.model for qs in self._get_querysets()]
-        all_the_same = len(set(queryset_models)) == 1
-        if not all_the_same:
-            raise ValueError(
-                "All querysets must be of the same model to use the default converter."
-            )
-        return self.get_converter_class()(queryset_models[0])
+        return self.get_converter_class()()
 
     def get_documents(self) -> Iterable[Document]:
         querysets = self._get_querysets()
@@ -367,7 +393,8 @@ def build_vector_index_base_for_storage_provider(
     """Build a VectorIndex base class for a given storage provider alias.
 
     e.g. If WAGATAIL_VECTOR_INDEX_STORAGE_PROVIDERS includes a provider with alias "default" referencing the PgvectorStorageProvider,
-    this function will return a class that is a subclass of PgvectorIndexMixin and VectorIndex."""
+    this function will return a class that is a subclass of PgvectorIndexMixin and VectorIndex.
+    """
 
     storage_provider = get_storage_provider(storage_provider_alias)
     alias_camel = camel_case(storage_provider_alias)

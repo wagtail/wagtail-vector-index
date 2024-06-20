@@ -84,36 +84,6 @@ class MyVectorIndex(EmbeddableFieldsVectorIndexMixin, DefaultStorageVectorIndex)
     ]
 ```
 
-We're hoping to handle this automatically in the near future. But for now, you'll also need to override a couple of methods to allow the index to succesfully index content. For example:
-
-```python
-# vector_index/indexes.py
-
-from wagtail.models import Page
-
-
-class MyEmbeddableFieldsVectorIndex(EmbeddableFieldsVectorIndex):
-    ...
-
-    def get_converter(self, model_class=None):
-        return self.get_converter_class()(model_class or Page)
-
-    def get_documents(self):
-        all_documents = []
-
-        for queryset in self._get_querysets():
-            converter = self.get_converter(model_class=queryset.model)
-            documents = list(
-                converter.bulk_to_documents(
-                    queryset.prefetch_related("embeddings"),
-                    embedding_backend=self.embedding_backend,
-                )
-            )
-            all_documents.extend(documents)
-
-        return all_documents
-```
-
 Indexes of this nature must be registered with `wagtail-vector-index` before they can be used. The best place to do this is in the `ready()` method of an `AppConfig` class within your project. You may find it helpful to save your custom index and any other related code to a new `vector_index` app in your project; in which case, `vector_index/apps.py` might look something like this:
 
 ```python
