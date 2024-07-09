@@ -169,7 +169,7 @@ class VectorIndex(Generic[ConfigClass]):
         return [
             obj
             for obj in converter.bulk_from_documents(similar_documents)
-            if include_self or obj != obj
+            if include_self or obj != object
         ]
 
     def search(self, query: str, *, limit: int = 5) -> list:
