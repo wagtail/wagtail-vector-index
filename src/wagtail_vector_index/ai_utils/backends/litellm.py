@@ -56,18 +56,33 @@ class LiteLLMStreamingAIResponse(AIStreamingResponse):
     def __iter__(self):
         return self
 
-    def __next__(self) -> AIResponseStreamingPart:
-        next_response = next(self.stream_wrapper)
-        index = next_response.choices[0].index
-        choice = next_response.choices[0]
+    def __aiter__(self):
+        return self
+
+    def _build_chunk(self, response) -> AIResponseStreamingPart:
+        index = response.choices[0].index
+        choice = response.choices[0]
         assert isinstance(choice, litellm.utils.StreamingChoices)  # type: ignore
         content = choice.delta.content
+        if not content:
+            raise StopIteration
         assert isinstance(content, str)
 
         return {
             "index": index,
             "content": content,
         }
+
+    def __next__(self) -> AIResponseStreamingPart:
+        next_response = next(self.stream_wrapper)
+        return self._build_chunk(next_response)
+
+    async def __anext__(self):
+        next_response = await self.stream_wrapper.__anext__()
+        try:
+            return self._build_chunk(next_response)
+        except StopIteration as e:
+            raise StopAsyncIteration from e
 
 
 @dataclass(kw_only=True)
