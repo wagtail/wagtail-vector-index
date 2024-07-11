@@ -157,6 +157,23 @@ def test_litellm_chat(make_chat_backend):
 
 
 @if_litellm_installed
+def test_litellm_streaming_chat(make_chat_backend):
+    backend = make_chat_backend()
+    input_text = "Little trotty wagtail, he waddled in the mud."
+    response_text = "And left his little footmarks, trample where he would."
+    messages: List[ChatMessage] = [
+        {"content": message, "role": "user"} for message in input_text
+    ]
+    response = backend.chat(messages=messages, stream=True, mock_response=response_text)
+
+    full_text = ""
+    for chunk in response:
+        full_text += chunk["content"]
+
+    assert full_text == response_text
+
+
+@if_litellm_installed
 async def test_litellm_async_chat(make_chat_backend):
     backend = make_chat_backend()
     input_text = "Little trotty wagtail, he waddled in the mud."
