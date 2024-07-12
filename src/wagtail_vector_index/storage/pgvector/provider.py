@@ -1,5 +1,11 @@
 import logging
-from collections.abc import Generator, Iterable, MutableSequence, Sequence
+from collections.abc import (
+    AsyncGenerator,
+    Generator,
+    Iterable,
+    MutableSequence,
+    Sequence,
+)
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
@@ -86,6 +92,23 @@ class PgvectorIndexMixin(MixinBase):
                 fetch_distance=False,
             )[:limit]
             .iterator()
+        ):
+            embedding = pgvector_embedding.embedding
+            yield embedding.to_document()
+
+    async def aget_similar_documents(
+        self, query_vector, *, limit: int = 5
+    ) -> AsyncGenerator[Document, None]:
+        async for pgvector_embedding in (
+            self._get_queryset()
+            .select_related("embedding")
+            .filter(embedding_output_dimensions=len(query_vector))
+            .order_by_distance(
+                query_vector,
+                distance_method=self.distance_method,
+                fetch_distance=False,
+            )[:limit]
+            .aiterator()
         ):
             embedding = pgvector_embedding.embedding
             yield embedding.to_document()

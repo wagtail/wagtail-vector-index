@@ -98,7 +98,7 @@ filterwarnings = [
     "ignore::DeprecationWarning",
 ]
 
-[tool.ruff]
+[tool.ruff.lint]
 select = ["F", "E", "C90", "I", "B", "DJ", "RUF", "TRY", "C4", "TCH005", "TCH004"]
 ignore = ["TRY003", "E501", "RUF012"]
 
