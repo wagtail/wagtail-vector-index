@@ -1,5 +1,11 @@
 from collections import defaultdict
-from collections.abc import Generator, Iterable, MutableSequence, Sequence
+from collections.abc import (
+    AsyncGenerator,
+    Generator,
+    Iterable,
+    MutableSequence,
+    Sequence,
+)
 from typing import TYPE_CHECKING, ClassVar, Optional, TypeVar, cast
 
 from django.apps import apps
@@ -183,6 +189,14 @@ class DocumentToModelMixin:
             raise ValueError(f"Failed to find model class for {ct!r}")
         return model_class
 
+    @classmethod
+    async def _amodel_class_from_ctid(cls, id: str) -> type[models.Model]:
+        ct = await cls._aget_content_type_for_id(int(id))
+        model_class = ct.model_class()
+        if model_class is None:
+            raise ValueError(f"Failed to find model class for {ct!r}")
+        return model_class
+
     def from_document(self, document: Document) -> models.Model:
         model_class = self._model_class_from_ctid(document.metadata["content_type_id"])
         try:
@@ -219,6 +233,50 @@ class DocumentToModelMixin:
                 continue
             seen_keys.add(key)
             yield objects_by_key[key]
+
+    async def abulk_from_documents(
+        self, documents: Iterable[Document]
+    ) -> AsyncGenerator[models.Model, None, None]:
+        """A copy of `bulk_from_documents`, but async"""
+        # Force evaluate generators to allow value to be reused
+        documents = tuple(documents)
+
+        ids_by_content_type: dict[str, list[str]] = defaultdict(list)
+        for doc in documents:
+            ids_by_content_type[doc.metadata["content_type_id"]].append(
+                doc.metadata["object_id"]
+            )
+
+        # NOTE: (content_type_id, object_id) combo keys are required to
+        # reliably map data from multiple models
+        objects_by_key: dict[tuple[str, str], models.Model] = {}
+        for content_type_id, ids in ids_by_content_type.items():
+            model_class = await self._amodel_class_from_ctid(content_type_id)
+            model_objects = model_class.objects.filter(pk__in=ids)
+            objects_by_key.update(
+                {(content_type_id, str(obj.pk)): obj async for obj in model_objects}
+            )
+
+        seen_keys = set()  # de-dupe as we go
+        for doc in documents:
+            key = (doc.metadata["content_type_id"], doc.metadata["object_id"])
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            yield objects_by_key[key]
+
+    @staticmethod
+    async def _aget_content_type_for_id(id: int) -> ContentType:
+        """
+        Same as `ContentTypeManager.get_for_id`, but async.
+        """
+        manager = ContentType.objects
+        try:
+            ct = manager._cache[manager.db][id]
+        except KeyError:
+            ct = await manager.aget(pk=id)
+            manager._add_to_cache(manager.db, ct)
+        return ct
 
 
 class EmbeddableFieldsDocumentConverter(DocumentToModelMixin):
