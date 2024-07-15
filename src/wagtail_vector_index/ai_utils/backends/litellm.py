@@ -179,7 +179,7 @@ class LiteLLMEmbeddingBackend(BaseEmbeddingBackend[LiteLLMEmbeddingBackendConfig
 
     async def aembed(self, inputs: Iterable[str], **kwargs) -> list[float]:
         response = await litellm.aembedding(
-            model=self.config.model_id, inputs=inputs, **kwargs
+            model=self.config.model_id, input=inputs, **kwargs
         )
 
         return [data["embedding"] for data in response["data"]]

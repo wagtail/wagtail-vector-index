@@ -1,5 +1,6 @@
 import re
 from typing import List
+from unittest.mock import AsyncMock
 
 import pytest
 from wagtail_vector_index.ai_utils.backends import (
@@ -240,4 +241,22 @@ def test_litellm_embed(make_embedding_backend, mocker):
         "And chirrupt up his wings to dry upon the garden rail.",
     ]
     list(backend.embed(input_text))
+    embed_mock.assert_called_once_with(input=input_text, model=backend.config.model_id)
+
+
+@if_litellm_installed
+async def test_litellm_aembed(make_embedding_backend, mocker):
+    backend = make_embedding_backend()
+    mock = AsyncMock()
+    embed_mock = mocker.patch(
+        "wagtail_vector_index.ai_utils.backends.litellm.litellm.aembedding",
+        side_effect=mock,
+    )
+    input_text = [
+        "Little trotty wagtail, he waddled in the mud,",
+        "And left his little footmarks, trample where he would.",
+        "He waddled in the water-pudge, and waggle went his tail,",
+        "And chirrupt up his wings to dry upon the garden rail.",
+    ]
+    list(await backend.aembed(input_text))
     embed_mock.assert_called_once_with(input=input_text, model=backend.config.model_id)
