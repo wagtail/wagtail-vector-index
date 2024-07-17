@@ -6,7 +6,7 @@ from collections.abc import (
     MutableSequence,
     Sequence,
 )
-from typing import TYPE_CHECKING, ClassVar, Optional, TypeVar, cast
+from typing import TYPE_CHECKING, ClassVar, Optional, TypeAlias, TypeVar, cast
 
 from django.apps import apps
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
@@ -44,6 +44,10 @@ This includes:
 - The EmbeddableFieldsVectorIndexMixin, which is a VectorIndex mixin that expects EmbeddableFieldsMixin models
 - The EmbeddableFieldsDocumentConverter, which is a DocumentConverter that knows how to convert a model instance using the EmbeddableFieldsMixin protocol to and from a Document
 """
+
+ContentTypeId: TypeAlias = str
+ObjectId: TypeAlias = str
+ModelKey: TypeAlias = tuple[ContentTypeId, ObjectId]
 
 
 class Embedding(models.Model):
@@ -207,63 +211,83 @@ class DocumentToModelMixin:
     def bulk_from_documents(
         self, documents: Iterable[Document]
     ) -> Generator[models.Model, None, None]:
+        documents = tuple(documents)
+
+        ids_by_content_type = self._get_ids_by_content_type(documents)
+        objects_by_key = self._get_models_by_key(ids_by_content_type)
+
+        yield from self._get_deduplicated_objects_generator(documents, objects_by_key)
+
+    async def abulk_from_documents(
+        self, documents: Iterable[Document]
+    ) -> AsyncGenerator[models.Model, None]:
+        """A copy of `bulk_from_documents`, but async"""
         # Force evaluate generators to allow value to be reused
         documents = tuple(documents)
 
-        ids_by_content_type: dict[str, list[str]] = defaultdict(list)
+        ids_by_content_type = self._get_ids_by_content_type(documents)
+        objects_by_key = await self._aget_models_by_key(ids_by_content_type)
+
+        # N.B. `yield from`  cannot be used in async functions, so we have to use a loop
+        for object_from_document in self._get_deduplicated_objects_generator(
+            documents, objects_by_key
+        ):
+            yield object_from_document
+
+    @staticmethod
+    def _get_ids_by_content_type(
+        documents: Sequence[Document],
+    ) -> dict[ContentTypeId, list[ObjectId]]:
+        ids_by_content_type = defaultdict(list)
         for doc in documents:
             ids_by_content_type[doc.metadata["content_type_id"]].append(
                 doc.metadata["object_id"]
             )
+        return ids_by_content_type
 
-        # NOTE: (content_type_id, object_id) combo keys are required to
-        # reliably map data from multiple models
-        objects_by_key: dict[tuple[str, str], models.Model] = {}
+    @staticmethod
+    def _get_deduplicated_objects_generator(
+        documents: Sequence[Document], objects_by_key: dict[ModelKey, models.Model]
+    ) -> Generator[models.Model, None, None]:
+        seen_keys = set()  # de-dupe as we go
+        for doc in documents:
+            key = (doc.metadata["content_type_id"], doc.metadata["object_id"])
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            yield objects_by_key[key]
+
+    def _get_models_by_key(
+        self, ids_by_content_type: dict
+    ) -> dict[ModelKey, models.Model]:
+        """
+        (content_type_id, object_id) combo keys are required to reliably map data
+        from multiple models. This function loads the models from the database
+        and groups them by such a key.
+        """
+        objects_by_key: dict[ModelKey, models.Model] = {}
         for content_type_id, ids in ids_by_content_type.items():
             model_class = self._model_class_from_ctid(content_type_id)
             model_objects = model_class.objects.filter(pk__in=ids)
             objects_by_key.update(
                 {(content_type_id, str(obj.pk)): obj for obj in model_objects}
             )
+        return objects_by_key
 
-        seen_keys = set()  # de-dupe as we go
-        for doc in documents:
-            key = (doc.metadata["content_type_id"], doc.metadata["object_id"])
-            if key in seen_keys:
-                continue
-            seen_keys.add(key)
-            yield objects_by_key[key]
-
-    async def abulk_from_documents(
-        self, documents: Iterable[Document]
-    ) -> AsyncGenerator[models.Model, None, None]:
-        """A copy of `bulk_from_documents`, but async"""
-        # Force evaluate generators to allow value to be reused
-        documents = tuple(documents)
-
-        ids_by_content_type: dict[str, list[str]] = defaultdict(list)
-        for doc in documents:
-            ids_by_content_type[doc.metadata["content_type_id"]].append(
-                doc.metadata["object_id"]
-            )
-
-        # NOTE: (content_type_id, object_id) combo keys are required to
-        # reliably map data from multiple models
-        objects_by_key: dict[tuple[str, str], models.Model] = {}
+    async def _aget_models_by_key(
+        self, ids_by_content_type: dict
+    ) -> dict[ModelKey, models.Model]:
+        """
+        Same as `_get_models_by_key`, but async.
+        """
+        objects_by_key: dict[ModelKey, models.Model] = {}
         for content_type_id, ids in ids_by_content_type.items():
             model_class = await self._amodel_class_from_ctid(content_type_id)
             model_objects = model_class.objects.filter(pk__in=ids)
             objects_by_key.update(
                 {(content_type_id, str(obj.pk)): obj async for obj in model_objects}
             )
-
-        seen_keys = set()  # de-dupe as we go
-        for doc in documents:
-            key = (doc.metadata["content_type_id"], doc.metadata["object_id"])
-            if key in seen_keys:
-                continue
-            seen_keys.add(key)
-            yield objects_by_key[key]
+        return objects_by_key
 
     @staticmethod
     async def _aget_content_type_for_id(id: int) -> ContentType:
@@ -272,10 +296,10 @@ class DocumentToModelMixin:
         """
         manager = ContentType.objects
         try:
-            ct = manager._cache[manager.db][id]
+            ct = manager._cache[manager.db][id]  # type: ignore[reportAttributeAccessIssue]
         except KeyError:
             ct = await manager.aget(pk=id)
-            manager._add_to_cache(manager.db, ct)
+            manager._add_to_cache(manager.db, ct)  # type: ignore[reportAttributeAccessIssue]
         return ct
 
 
