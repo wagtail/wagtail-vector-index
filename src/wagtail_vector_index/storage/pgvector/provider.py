@@ -93,7 +93,7 @@ class PgvectorIndexMixin(MixinBase):
     ) -> AsyncGenerator[Document, None]:
         async for pgvector_embedding in self._get_similar_documents_queryset(
             query_vector, limit=limit
-        ).aiterator():
+        ):
             embedding = pgvector_embedding.embedding
             yield embedding.to_document()
 
