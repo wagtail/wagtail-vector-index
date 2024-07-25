@@ -177,9 +177,9 @@ class LiteLLMEmbeddingBackend(BaseEmbeddingBackend[LiteLLMEmbeddingBackendConfig
         assert isinstance(response, litellm.EmbeddingResponse)
         yield from [data["embedding"] for data in response["data"]]
 
-    async def aembed(self, inputs: Iterable[str], **kwargs) -> list[float]:
+    async def aembed(self, inputs: Iterable[str], **kwargs) -> Iterator[list[float]]:
         response = await litellm.aembedding(
             model=self.config.model_id, input=inputs, **kwargs
         )
 
-        return [data["embedding"] for data in response["data"]]
+        return iter([data["embedding"] for data in response["data"]])
