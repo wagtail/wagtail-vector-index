@@ -40,7 +40,12 @@ class AIStreamingResponse:
     def __iter__(self):
         return self
 
+    def __aiter__(self):
+        return self
+
     def __next__(self) -> AIResponseStreamingPart: ...
+
+    async def __anext__(self) -> AIResponseStreamingPart: ...
 
 
 class AIResponse:
