@@ -171,10 +171,7 @@ class VectorIndex(Generic[ConfigClass]):
         Replicates the features of `VectorIndex.query()`, but in an async way.
         """
         try:
-            # TODO: use `next()` instead of `[0]` once the `aembed()` method of the
-            #  LiteLLMBackends class is updated to return the same data structure than
-            #  its BaseEmbeddingBackend parent class.
-            query_embedding = (await self.get_embedding_backend().aembed([query]))[0]  # type: ignore[reportIndexIssue]
+            query_embedding = next(await self.get_embedding_backend().aembed([query]))
         except IndexError as e:
             raise ValueError("No embeddings were generated for the given query.") from e
 
