@@ -192,65 +192,54 @@ class MyWeaviateVectorIndex(
     storage_provider_alias = "weaviate"
 ```
 
-# Using Similarity Threshold in Vector Search
+## Using Similarity Threshold in Vector Search
 
-The vector search implementation supports a similarity threshold for filtering results. This feature ensures that only the most relevant documents are returned, improving both the quality of results and query performance.
+### Understanding Similarity in Vector Search
 
-## Understanding Similarity Threshold
+Vector search operates on the principle of finding documents or items that are "similar" to a given query or reference item. This similarity is typically measured by the distance between vectors in a high-dimensional space. Before we dive into similarity thresholds, it's crucial to understand this concept.
 
-The similarity threshold is a float value between 0 and 1, where:
+### What is a Similarity Threshold?
+
+A similarity threshold is a filtering mechanism in vector search that allows you to control the relevance of returned results. It ensures that only the most pertinent documents are included in the result set, which can improve both the quality of results and query performance.
+
+The similarity threshold is represented as a float value between 0 and 1, where:
+
 - 0 means no threshold (all results are returned, up to the specified limit)
 - 1 means maximum similarity (only exact matches would be returned)
 - Values in between filter results based on their similarity to the query
 
 Higher threshold values result in fewer, but potentially more relevant results.
 
-## Similarity Threshold in Vector Index Methods
+### Implementing Similarity Threshold in Wagtail Vector Index
 
-The `VectorIndex` class includes a `similarity_threshold` parameter in methods like `query`, `find_similar`, and `search`:
+In Wagtail Vector Index, the `VectorIndex` class includes a `similarity_threshold` parameter in key methods:
 
-```python
-class MyVectorIndex(EmbeddableFieldsVectorIndexMixin, PgvectorIndexMixin, VectorIndex):
-    def query(self, query: str, *, sources_limit: int = 5, chat_backend_alias: str = "default", similarity_threshold: float = 0.0) -> QueryResponse:
-        # Implementation here
+* `query(query: str, *, sources_limit: int = 5, chat_backend_alias: str = "default", similarity_threshold: float = 0.0) -> QueryResponse`:
+  This method is used for querying the vector index.
+* `find_similar(object, *, include_self: bool = False, limit: int = 5, similarity_threshold: float = 0.0) -> list`:
+  This method finds similar objects in the vector index.
+* `search(query: str, *, limit: int = 5, similarity_threshold: float = 0.0) -> list`:
+  This method performs a search in the vector index.
 
-    def find_similar(self, object, *, include_self: bool = False, limit: int = 5, similarity_threshold: float = 0.0) -> list:
-        # Implementation here
+Each of these methods includes a `similarity_threshold` parameter, allowing you to control the similarity threshold for that specific operation.
 
-    def search(self, query: str, *, limit: int = 5, similarity_threshold: float = 0.0) -> list:
-        # Implementation here
-```
-
-## Example Usage
-
-Here are examples of how to use the `similarity_threshold` parameter:
-
-```python
-index = MyVectorIndex()
-
-# Query with similarity threshold
-response = index.query("What is the capital of France?", similarity_threshold=0.8)
-
-# Find similar objects with similarity threshold
-similar_objects = index.find_similar(my_object, similarity_threshold=0.7)
-
-# Search with similarity threshold
-search_results = index.search("AI in healthcare", similarity_threshold=0.75)
-```
-
-## Best Practices and Considerations
+### Best Practices and Considerations
 
 1. **Choosing a Threshold**: Start with a lower threshold (e.g., 0.5) and adjust based on your specific use case and the quality of results.
-
-2. **Performance**: Higher thresholds can improve query performance by reducing the number of results processed.
-
+2. **Performance Impact**: Higher thresholds can improve query performance by reducing the number of results processed.
 3. **Result Set Size**: Be aware that high thresholds might significantly reduce the number of results. Always check if your result set is empty and consider lowering the threshold if necessary.
-
 4. **Backend Differences**: While we strive for consistency, different vector search backends (e.g., pgvector, Qdrant, Weaviate) may have slight variations in how similarity is calculated. Test thoroughly with your specific backend.
-
 5. **Combining with Limit**: The `similarity_threshold` works in conjunction with the `limit` parameter. Results are first filtered by the similarity threshold, then limited to the specified number.
 
-## Debugging and Tuning
+## Practical Applications
+
+Consider these scenarios where adjusting the similarity threshold can be beneficial:
+
+1. **Content Recommendations**: In a content recommendation system, you might start with a lower threshold to cast a wide net, then gradually increase it as you gather more user data and refine your recommendations.
+2. **Semantic Search**: For a semantic search engine, a higher threshold can help ensure that only truly relevant results are returned, improving the user experience.
+3. **Duplicate Detection**: When looking for near-duplicate content, a very high threshold might be appropriate to catch only the closest matches.
+
+### Debugging and Tuning
 
 If you're not getting the expected results:
 
@@ -259,3 +248,5 @@ If you're not getting the expected results:
 3. Consider the nature of your data and queries. Some domains might require lower thresholds to capture relevant semantic relationships.
 
 Remember, the optimal threshold can vary depending on your specific use case, data, and the embedding model used. Experimentation and iterative tuning are often necessary to find the best balance between precision and recall for your application.
+
+For code examples and step-by-step guides on using similarity thresholds, please refer to our How-To Guide: [Using Similarity Thresholds in Wagtail Vector Index](./how-to/using-similarity-thresholds.md).
