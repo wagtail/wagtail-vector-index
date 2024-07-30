@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Any, NotRequired, Self
 
 import litellm
+import litellm.types.utils
 from django.core.exceptions import ImproperlyConfigured
 
 from ..types import (
@@ -174,7 +175,7 @@ class LiteLLMEmbeddingBackend(BaseEmbeddingBackend[LiteLLMEmbeddingBackendConfig
     def embed(self, inputs: Iterable[str], **kwargs) -> Iterator[list[float]]:
         response = litellm.embedding(model=self.config.model_id, input=inputs, **kwargs)
         # LiteLLM *should* return an EmbeddingResponse
-        assert isinstance(response, litellm.EmbeddingResponse)
+        assert isinstance(response, litellm.types.utils.EmbeddingResponse)
         yield from [data["embedding"] for data in response["data"]]
 
     async def aembed(self, inputs: Iterable[str], **kwargs) -> Iterator[list[float]]:

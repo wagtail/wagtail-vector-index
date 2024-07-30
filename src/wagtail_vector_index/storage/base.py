@@ -1,5 +1,5 @@
 import copy
-from collections.abc import Generator, Iterable, Mapping, Sequence
+from collections.abc import AsyncGenerator, Generator, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, ClassVar, Generic, Protocol, TypeVar
 
@@ -94,6 +94,10 @@ class DocumentConverter(Protocol):
         self, documents: Iterable[Document]
     ) -> Generator[object, None, None]: ...
 
+    async def abulk_from_documents(
+        self, documents: Iterable[Document]
+    ) -> AsyncGenerator[object, None]: ...
+
 
 @dataclass
 class QueryResponse:
@@ -102,6 +106,14 @@ class QueryResponse:
     """
 
     response: str
+    sources: Iterable[object]
+
+
+@dataclass
+class AsyncQueryResponse:
+    """Same as QueryResponse class, but with the response being an async generator."""
+
+    response: AsyncGenerator[str, None]
     sources: Iterable[object]
 
 
@@ -151,6 +163,50 @@ class VectorIndex(Generic[ConfigClass]):
         chat_backend = get_chat_backend(chat_backend_alias)
         response = chat_backend.chat(messages=messages)
         return QueryResponse(response=response.choices[0], sources=sources)
+
+    async def aquery(
+        self, query: str, *, sources_limit: int = 5, chat_backend_alias: str = "default"
+    ) -> AsyncQueryResponse:
+        """
+        Replicates the features of `VectorIndex.query()`, but in an async way.
+        """
+        try:
+            query_embedding = next(await self.get_embedding_backend().aembed([query]))
+        except IndexError as e:
+            raise ValueError("No embeddings were generated for the given query.") from e
+
+        similar_documents = [
+            doc async for doc in self.aget_similar_documents(query_embedding)
+        ]
+
+        sources = [
+            source
+            async for source in self.get_converter().abulk_from_documents(
+                similar_documents
+            )
+        ]
+
+        merged_context = "\n".join(doc.metadata["content"] for doc in similar_documents)
+        prompt = (
+            getattr(settings, "WAGTAIL_VECTOR_INDEX_QUERY_PROMPT", None)
+            or "You are a helpful assistant. Use the following context to answer the question. Don't mention the context in your answer."
+        )
+        messages = [
+            {"content": prompt, "role": "system"},
+            {"content": merged_context, "role": "system"},
+            {"content": query, "role": "user"},
+        ]
+        chat_backend = get_chat_backend(chat_backend_alias)
+        response = await chat_backend.achat(messages=messages, stream=True)
+
+        async def async_stream_wrapper():
+            async for chunk in response:
+                yield chunk["content"]
+
+        return AsyncQueryResponse(
+            response=async_stream_wrapper(),
+            sources=sources,
+        )
 
     def find_similar(
         self, object, *, include_self: bool = False, limit: int = 5
@@ -208,4 +264,9 @@ class VectorIndex(Generic[ConfigClass]):
     def get_similar_documents(
         self, query_vector: Sequence[float], *, limit: int = 5
     ) -> Generator[Document, None, None]:
+        raise NotImplementedError
+
+    def aget_similar_documents(
+        self, query_vector, *, limit: int = 5
+    ) -> AsyncGenerator[Document, None]:
         raise NotImplementedError
