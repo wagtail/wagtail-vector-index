@@ -124,7 +124,7 @@ def test_query_passes_sources_to_backend(mocker):
     index = ExamplePage.vector_index
     documents = index.get_documents()[:2]
 
-    def get_similar_documents(query_embedding, limit=0):
+    def get_similar_documents(query_embedding, limit=0, similarity_score=0.0):
         yield from documents
 
     query_mock = mocker.patch("conftest.ChatMockBackend.chat")
