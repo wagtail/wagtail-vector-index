@@ -134,3 +134,69 @@ def test_query_passes_sources_to_backend(mocker):
     index.query("")
     first_call_messages = query_mock.call_args.kwargs["messages"]
     assert first_call_messages[1] == {"content": expected_content, "role": "system"}
+
+
+@pytest.mark.django_db
+def test_query_with_similarity_threshold(mocker):
+    ExamplePageFactory.create_batch(2)
+    index = ExamplePage.vector_index
+    documents = index.get_documents()[:2]
+
+    def get_similar_documents(query_embedding, limit=0, similarity_threshold=0.5):
+        yield from documents
+
+    query_mock = mocker.patch("conftest.ChatMockBackend.chat")
+    expected_content = "\n".join([doc.metadata["content"] for doc in documents])
+    similar_documents_mock = mocker.patch.object(index, "get_similar_documents")
+    similar_documents_mock.side_effect = get_similar_documents
+    index.query("", similarity_threshold=0.5)
+    first_call_messages = query_mock.call_args.kwargs["messages"]
+    assert first_call_messages[1] == {"content": expected_content, "role": "system"}
+
+
+@pytest.mark.django_db
+def test_find_similar_with_similarity_threshold(mocker):
+    pages = ExamplePageFactory.create_batch(10)
+    vector_index = ExamplePage.vector_index
+
+    def gen_pages(cls, *args, **kwargs):
+        yield from pages
+
+    mocker.patch(
+        "wagtail_vector_index.storage.models.EmbeddableFieldsDocumentConverter.bulk_from_documents",
+        side_effect=gen_pages,
+    )
+
+    case = unittest.TestCase()
+
+    # We expect 9 results without the page itself.
+    actual = vector_index.find_similar(pages[0], limit=100, include_self=False, similarity_threshold=0.5)
+    case.assertCountEqual(actual, pages[1:])
+
+    # We expect 10 results with the page itself.
+    actual = vector_index.find_similar(pages[0], limit=100, include_self=True, similarity_threshold=0.5)
+    case.assertCountEqual(actual, pages)
+
+
+@pytest.mark.django_db
+def test_search_with_similarity_threshold(mocker):
+    pages = ExamplePageFactory.create_batch(10)
+    vector_index = ExamplePage.vector_index
+
+    def gen_pages(cls, *args, **kwargs):
+        yield from pages
+
+    mocker.patch(
+        "wagtail_vector_index.storage.models.EmbeddableFieldsDocumentConverter.bulk_from_documents",
+        side_effect=gen_pages,
+    )
+
+    case = unittest.TestCase()
+
+    # We expect 9 results without the page itself.
+    actual = vector_index.search("test", limit=100, similarity_threshold=0.5)
+    case.assertCountEqual(actual, pages[1:])
+
+    # We expect 10 results with the page itself.
+    actual = vector_index.search("test", limit=100, similarity_threshold=0.5)
+    case.assertCountEqual(actual, pages)

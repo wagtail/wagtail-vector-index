@@ -191,3 +191,71 @@ class MyWeaviateVectorIndex(
 ):
     storage_provider_alias = "weaviate"
 ```
+
+# Using Similarity Threshold in Vector Search
+
+The vector search implementation supports a similarity threshold for filtering results. This feature ensures that only the most relevant documents are returned, improving both the quality of results and query performance.
+
+## Understanding Similarity Threshold
+
+The similarity threshold is a float value between 0 and 1, where:
+- 0 means no threshold (all results are returned, up to the specified limit)
+- 1 means maximum similarity (only exact matches would be returned)
+- Values in between filter results based on their similarity to the query
+
+Higher threshold values result in fewer, but potentially more relevant results.
+
+## Similarity Threshold in Vector Index Methods
+
+The `VectorIndex` class includes a `similarity_threshold` parameter in methods like `query`, `find_similar`, and `search`:
+
+```python
+class MyVectorIndex(EmbeddableFieldsVectorIndexMixin, PgvectorIndexMixin, VectorIndex):
+    def query(self, query: str, *, sources_limit: int = 5, chat_backend_alias: str = "default", similarity_threshold: float = 0.0) -> QueryResponse:
+        # Implementation here
+
+    def find_similar(self, object, *, include_self: bool = False, limit: int = 5, similarity_threshold: float = 0.0) -> list:
+        # Implementation here
+
+    def search(self, query: str, *, limit: int = 5, similarity_threshold: float = 0.0) -> list:
+        # Implementation here
+```
+
+## Example Usage
+
+Here are examples of how to use the `similarity_threshold` parameter:
+
+```python
+index = MyVectorIndex()
+
+# Query with similarity threshold
+response = index.query("What is the capital of France?", similarity_threshold=0.8)
+
+# Find similar objects with similarity threshold
+similar_objects = index.find_similar(my_object, similarity_threshold=0.7)
+
+# Search with similarity threshold
+search_results = index.search("AI in healthcare", similarity_threshold=0.75)
+```
+
+## Best Practices and Considerations
+
+1. **Choosing a Threshold**: Start with a lower threshold (e.g., 0.5) and adjust based on your specific use case and the quality of results.
+
+2. **Performance**: Higher thresholds can improve query performance by reducing the number of results processed.
+
+3. **Result Set Size**: Be aware that high thresholds might significantly reduce the number of results. Always check if your result set is empty and consider lowering the threshold if necessary.
+
+4. **Backend Differences**: While we strive for consistency, different vector search backends (e.g., pgvector, Qdrant, Weaviate) may have slight variations in how similarity is calculated. Test thoroughly with your specific backend.
+
+5. **Combining with Limit**: The `similarity_threshold` works in conjunction with the `limit` parameter. Results are first filtered by the similarity threshold, then limited to the specified number.
+
+## Debugging and Tuning
+
+If you're not getting the expected results:
+
+1. Try lowering the threshold to see if more relevant results appear.
+2. Check the similarity scores of your results (if available) to understand the distribution.
+3. Consider the nature of your data and queries. Some domains might require lower thresholds to capture relevant semantic relationships.
+
+Remember, the optimal threshold can vary depending on your specific use case, data, and the embedding model used. Experimentation and iterative tuning are often necessary to find the best balance between precision and recall for your application.

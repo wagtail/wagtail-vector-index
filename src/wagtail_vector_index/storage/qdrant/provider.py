@@ -61,10 +61,38 @@ class QdrantIndexMixin(MixinBase):
         )
 
     def get_similar_documents(
-        self, query_vector: Sequence[float], *, limit: int = 5
+        self, query_vector: Sequence[float], *, limit: int = 5, similarity_threshold: float = 0.0
     ) -> Generator[Document, None, None]:
+        """
+        Retrieve similar documents from Qdrant.
+
+        Args:
+            query_vector (Sequence[float]): The query vector to find similar documents for.
+            limit (int): The maximum number of similar documents to return.
+            similarity_threshold (float): The minimum similarity score for returned documents.
+                                          Range is [0, 1] where 1 is most similar.
+                                          0 means no threshold (default).
+
+        Returns:
+            Generator[Document, None, None]: A generator of similar documents.
+
+        Note:
+            Qdrant uses cosine similarity by default, where higher scores indicate
+            more similar vectors. The similarity_threshold is used directly as
+            Qdrant's score_threshold.
+        """
+        if not 0 <= similarity_threshold <= 1:
+            raise ValueError("similarity_threshold must be between 0 and 1")
+
+        # Convert similarity threshold to score threshold
+        # For Qdrant with cosine similarity, we can use the similarity_threshold directly
+        score_threshold = similarity_threshold if similarity_threshold > 0 else None
+
         similar_documents = self.storage_provider.client.search(
-            collection_name=self.index_name, query_vector=query_vector, limit=limit
+            collection_name=self.index_name,
+            query_vector=query_vector,
+            limit=limit,
+            score_threshold=score_threshold
         )
         for doc in similar_documents:
             yield Document(
