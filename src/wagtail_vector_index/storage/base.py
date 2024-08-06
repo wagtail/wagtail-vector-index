@@ -138,7 +138,12 @@ class VectorIndex(Generic[ConfigClass]):
     # Public API
 
     def query(
-        self, query: str, *, sources_limit: int = 5, chat_backend_alias: str = "default", similarity_threshold: float = 0.0
+        self,
+        query: str,
+        *,
+        sources_limit: int = 5,
+        chat_backend_alias: str = "default",
+        similarity_threshold: float = 0.0,
     ) -> QueryResponse:
         """Perform a natural language query against the index, returning a QueryResponse containing the natural language response, and a list of sources"""
         try:
@@ -146,7 +151,11 @@ class VectorIndex(Generic[ConfigClass]):
         except StopIteration as e:
             raise ValueError("No embeddings were generated for the given query.") from e
 
-        similar_documents = list(self.get_similar_documents(query_embedding, similarity_threshold=similarity_threshold))
+        similar_documents = list(
+            self.get_similar_documents(
+                query_embedding, similarity_threshold=similarity_threshold
+            )
+        )
 
         sources = list(self.get_converter().bulk_from_documents(similar_documents))
 
@@ -165,7 +174,12 @@ class VectorIndex(Generic[ConfigClass]):
         return QueryResponse(response=response.choices[0], sources=sources)
 
     async def aquery(
-        self, query: str, *, sources_limit: int = 5, chat_backend_alias: str = "default", similarity_threshold: float = 0.0
+        self,
+        query: str,
+        *,
+        sources_limit: int = 5,
+        chat_backend_alias: str = "default",
+        similarity_threshold: float = 0.0,
     ) -> AsyncQueryResponse:
         """
         Replicates the features of `VectorIndex.query()`, but in an async way.
@@ -176,7 +190,10 @@ class VectorIndex(Generic[ConfigClass]):
             raise ValueError("No embeddings were generated for the given query.") from e
 
         similar_documents = [
-            doc async for doc in self.aget_similar_documents(query_embedding, similarity_threshold=similarity_threshold)
+            doc
+            async for doc in self.aget_similar_documents(
+                query_embedding, similarity_threshold=similarity_threshold
+            )
         ]
 
         sources = [
@@ -209,7 +226,12 @@ class VectorIndex(Generic[ConfigClass]):
         )
 
     def find_similar(
-        self, object, *, include_self: bool = False, limit: int = 5, similarity_threshold: float = 0.0
+        self,
+        object,
+        *,
+        include_self: bool = False,
+        limit: int = 5,
+        similarity_threshold: float = 0.0,
     ) -> list:
         """Find similar objects to the given object"""
         converter = self.get_converter()
@@ -228,13 +250,17 @@ class VectorIndex(Generic[ConfigClass]):
             if include_self or obj != object
         ]
 
-    def search(self, query: str, *, limit: int = 5, similarity_threshold: float = 0.0) -> list:
+    def search(
+        self, query: str, *, limit: int = 5, similarity_threshold: float = 0.0
+    ) -> list:
         """Perform a search against the index, returning only a list of matching sources"""
         try:
             query_embedding = next(self.get_embedding_backend().embed([query]))
         except StopIteration as e:
             raise ValueError("No embeddings were generated for the given query.") from e
-        similar_documents = self.get_similar_documents(query_embedding, limit=limit, similarity_threshold=similarity_threshold)
+        similar_documents = self.get_similar_documents(
+            query_embedding, limit=limit, similarity_threshold=similarity_threshold
+        )
         return list(self.get_converter().bulk_from_documents(similar_documents))
 
     # Utilities
@@ -262,7 +288,11 @@ class VectorIndex(Generic[ConfigClass]):
         raise NotImplementedError
 
     def get_similar_documents(
-        self, query_vector: Sequence[float], *, limit: int = 5, similarity_threshold: float = 0.0
+        self,
+        query_vector: Sequence[float],
+        *,
+        limit: int = 5,
+        similarity_threshold: float = 0.0,
     ) -> Generator[Document, None, None]:
         raise NotImplementedError
 

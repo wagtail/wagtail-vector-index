@@ -61,7 +61,11 @@ class QdrantIndexMixin(MixinBase):
         )
 
     def get_similar_documents(
-        self, query_vector: Sequence[float], *, limit: int = 5, similarity_threshold: float = 0.0
+        self,
+        query_vector: Sequence[float],
+        *,
+        limit: int = 5,
+        similarity_threshold: float = 0.0,
     ) -> Generator[Document, None, None]:
         """
         Retrieve similar documents from Qdrant.
@@ -92,7 +96,7 @@ class QdrantIndexMixin(MixinBase):
             collection_name=self.index_name,
             query_vector=query_vector,
             limit=limit,
-            score_threshold=score_threshold
+            score_threshold=score_threshold,
         )
         for doc in similar_documents:
             yield Document(

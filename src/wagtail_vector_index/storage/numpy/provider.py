@@ -35,7 +35,11 @@ class NumpyIndexMixin(MixinBase):
         pass
 
     def get_similar_documents(
-        self, query_vector: Sequence[float], *, limit: int = 5, similarity_threshold: float = 0.0
+        self,
+        query_vector: Sequence[float],
+        *,
+        limit: int = 5,
+        similarity_threshold: float = 0.0,
     ) -> Generator[Document, None, None]:
         similarities = []
         for document in self.get_documents():

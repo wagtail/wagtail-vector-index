@@ -63,7 +63,11 @@ class WeaviateIndexMixin(MixinBase):
         raise NotImplementedError
 
     def get_similar_documents(
-        self, query_vector: Sequence[float], *, limit: int = 5, similarity_threshold: float = 0.0
+        self,
+        query_vector: Sequence[float],
+        *,
+        limit: int = 5,
+        similarity_threshold: float = 0.0,
     ) -> Generator[Document, None, None]:
         """
         Retrieve similar documents from Weaviate.
@@ -80,7 +84,7 @@ class WeaviateIndexMixin(MixinBase):
 
         Note:
             Weaviate uses cosine distance internally, where lower values indicate
-            more similar vectors. The similarity_threshold is converted to a 
+            more similar vectors. The similarity_threshold is converted to a
             distance threshold where distance = 1 - similarity.
         """
         if not 0 <= similarity_threshold <= 1:
@@ -88,7 +92,9 @@ class WeaviateIndexMixin(MixinBase):
 
         # Convert similarity threshold to distance threshold
         # Weaviate uses cosine distance, which is 1 - cosine similarity
-        distance_threshold = 1 - similarity_threshold if similarity_threshold > 0 else None
+        distance_threshold = (
+            1 - similarity_threshold if similarity_threshold > 0 else None
+        )
 
         near_vector = {
             "vector": query_vector,
