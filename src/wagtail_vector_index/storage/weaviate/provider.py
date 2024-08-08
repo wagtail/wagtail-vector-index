@@ -100,7 +100,7 @@ class WeaviateIndexMixin(MixinBase):
             "vector": query_vector,
         }
         if distance_threshold is not None:
-            near_vector["distance"] = distance_threshold
+            near_vector["distance"] = [distance_threshold]
 
         similar_documents = (
             self.storage_provider.client.query.get(
