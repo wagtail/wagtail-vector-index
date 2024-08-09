@@ -1,7 +1,6 @@
-import inspect
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Generator, NotRequired, Self
+from typing import Any, NotRequired, Self
 
 import litellm
 import litellm.types.utils
@@ -41,10 +40,7 @@ class LiteLLMEmbeddingSettingsDict(
 def build_ai_response(response):
     """Convert a LiteLLM response to the appropriate AIResponse class"""
 
-    # Normally, LiteLLM returns a CustomStreamWrapper for streaming calls,
-    # but in some cases such as when passing a mock_response, it returns a generator.
-    # They can both be treated as equivalent for our purposes.
-    if type(response) == litellm.CustomStreamWrapper or inspect.isgenerator(response):
+    if type(response) == litellm.CustomStreamWrapper:
         return LiteLLMStreamingAIResponse(response)
 
     return AIResponse(
@@ -55,7 +51,7 @@ def build_ai_response(response):
 class LiteLLMStreamingAIResponse(AIStreamingResponse):
     """A wrapper around a litellm.CustomStreamWrapper to make it compatible with the AIStreamingResponse interface."""
 
-    def __init__(self, stream_wrapper: litellm.CustomStreamWrapper | Generator) -> None:
+    def __init__(self, stream_wrapper: litellm.CustomStreamWrapper) -> None:
         self.stream_wrapper = stream_wrapper
 
     def __iter__(self):
