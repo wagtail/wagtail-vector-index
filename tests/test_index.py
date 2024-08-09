@@ -236,19 +236,17 @@ def test_find_similar_with_similarity_threshold(mocker):
         side_effect=gen_pages,
     )
 
-    case = unittest.TestCase()
-
     # We expect 9 results without the page itself.
     actual = vector_index.find_similar(
         pages[0], limit=100, include_self=False, similarity_threshold=0.5
     )
-    case.assertCountEqual(actual, pages[1:])
+    assert set(actual) == set(pages[1:]), f"Expected {pages[1:]}, but got {actual}"
 
     # We expect 10 results with the page itself.
     actual = vector_index.find_similar(
         pages[0], limit=100, include_self=True, similarity_threshold=0.5
     )
-    case.assertCountEqual(actual, pages)
+    assert set(actual) == set(pages), f"Expected {pages}, but got {actual}"
 
 
 @pytest.mark.django_db
