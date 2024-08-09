@@ -80,19 +80,19 @@ class PgvectorIndexMixin(MixinBase):
         self._get_queryset().delete()
 
     def get_similar_documents(
-        self, query_vector, *, limit: int = 5
+        self, query_vector, *, limit: int = 5, similarity_threshold: float = 0.0
     ) -> Generator[Document, None, None]:
         for pgvector_embedding in self._get_similar_documents_queryset(
-            query_vector, limit=limit
+            query_vector, limit=limit, similarity_threshold=similarity_threshold
         ).iterator():
             embedding = pgvector_embedding.embedding
             yield embedding.to_document()
 
     async def aget_similar_documents(
-        self, query_vector, *, limit: int = 5
+        self, query_vector, *, limit: int = 5, similarity_threshold: float = 0.0
     ) -> AsyncGenerator[Document, None]:
         async for pgvector_embedding in self._get_similar_documents_queryset(
-            query_vector, limit=limit
+            query_vector, limit=limit, similarity_threshold=similarity_threshold
         ):
             embedding = pgvector_embedding.embedding
             yield embedding.to_document()
@@ -105,18 +105,23 @@ class PgvectorIndexMixin(MixinBase):
         )
 
     def _get_similar_documents_queryset(
-        self, query_vector: Sequence[float], *, limit: int
+        self, query_vector: Sequence[float], *, limit: int, similarity_threshold: float
     ) -> "PgvectorEmbeddingQuerySet":
-        return (
+        queryset = (
             self._get_queryset()
             .select_related("embedding")
             .filter(embedding_output_dimensions=len(query_vector))
             .order_by_distance(
                 query_vector,
                 distance_method=self.distance_method,
-                fetch_distance=False,
-            )[:limit]
+                fetch_distance=True,
+            )
         )
+        if similarity_threshold > 0.0:
+            # Convert similarity threshold to distance threshold
+            distance_threshold = 1 - similarity_threshold
+            queryset = queryset.filter(distance__lte=distance_threshold)
+        return queryset[:limit]
 
     def _bulk_create(self, embeddings: Sequence["PgvectorEmbedding"]) -> None:
         _embedding_model().objects.bulk_create(

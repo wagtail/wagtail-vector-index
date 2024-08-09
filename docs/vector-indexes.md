@@ -191,3 +191,57 @@ class MyWeaviateVectorIndex(
 ):
     storage_provider_alias = "weaviate"
 ```
+
+## Using Similarity Threshold in Vector Search
+
+### Understanding Similarity in Vector Search
+
+Vector search operates on the principle of finding documents or items that are "similar" to a given query or reference item. This similarity is typically measured by the distance between vectors in a high-dimensional space. Before we dive into similarity thresholds, it's crucial to understand this concept.
+
+### What is a Similarity Threshold?
+
+A similarity threshold in vector search helps control the relevance of results. It filters out less relevant documents, improving result quality and query performance.
+
+The similarity threshold represents a float value between 0 and 1, indicating the degree of similarity.
+
+- 0 means no threshold (the system returns all results within the specified limit.)
+- 1 means maximum similarity (the system returns only exact matches)
+- Values in between filter results based on their similarity to the query
+
+The similarity threshold has a significant impact on the number of returned results. Higher threshold values lead to fewer results, but these are potentially more relevant, highlighting the trade-off between result quantity and relevance.
+
+### Implementing Similarity Threshold in Wagtail Vector Index
+
+In Wagtail Vector Index, the `VectorIndex` class includes a `similarity_threshold` parameter in key methods:
+
+* `query`: This method is used for querying the vector index.
+* `find_similar`: This method finds similar objects in the vector index.
+* `search`: This method performs a search in the vector index.
+
+Each of these methods includes a `similarity_threshold` parameter, allowing you to control the similarity threshold for that specific operation.
+
+### Best Practices and Considerations
+
+1. **Choosing a Threshold**: Start with a lower threshold (e.g., 0.5) and adjust based on your specific use case and the quality of results.
+2. Performance Impact: Optimistically, higher thresholds can significantly improve query performance by reducing the number of results processed. This potential for optimization is a key advantage of vector search.
+3. **Result Set Size**: Be aware that high thresholds might significantly reduce the number of results. Always check if your result set is empty, and consider lowering the threshold if necessary.
+4. **Backend Differences**: While we strive for consistency, different vector search backends (e.g., pgvector, Qdrant, Weaviate) may calculate similarity slightly differently. Test thoroughly with your specific backend.
+5. **Combining with Limit**: The `similarity_threshold` parameter works in conjunction with the `limit` parameter. Results are first filtered by the similarity threshold and then limited to the specified number.
+
+## Practical Applications
+
+Consider these scenarios where adjusting the similarity threshold can be beneficial:
+
+1. **Content Recommendations**: In a content recommendation system, starting with a lower threshold to cast a wide net and then gradually increasing it as you gather more user data underscores the value of your work in refining recommendations.
+2. **Semantic Search**: A higher threshold in a semantic search engine can ensure that it returns more relevant results, thereby improving the user experience.
+3. **Duplicate Detection: A very high threshold is appropriate to catch only the closest matches when looking for near-duplicate content.
+
+### Debugging and Tuning
+
+If you're not getting the expected results:
+
+1. Try lowering the threshold to see if more relevant results appear.
+2. Check the similarity scores of your results (if available) to understand the distribution.
+3. Consider the nature of your data and queries. Some domains require lower thresholds to capture relevant semantic relationships.
+
+Remember, the optimal threshold can vary depending on your specific use case, data, and embedding model. Experimentation and iterative tuning are often necessary to find the best balance between precision and recall for your application.

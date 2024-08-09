@@ -35,7 +35,11 @@ class NumpyIndexMixin(MixinBase):
         pass
 
     def get_similar_documents(
-        self, query_vector: Sequence[float], *, limit: int = 5
+        self,
+        query_vector: Sequence[float],
+        *,
+        limit: int = 5,
+        similarity_threshold: float = 0.0,
     ) -> Generator[Document, None, None]:
         similarities = []
         for document in self.get_documents():
@@ -44,7 +48,8 @@ class NumpyIndexMixin(MixinBase):
                 / np.linalg.norm(query_vector)
                 * np.linalg.norm(document.vector)
             )
-            similarities.append((cosine_similarity, document))
+            if cosine_similarity >= similarity_threshold:
+                similarities.append((cosine_similarity, document))
 
         sorted_similarities = sorted(
             similarities, key=lambda pair: pair[0], reverse=True
