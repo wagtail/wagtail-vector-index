@@ -14,20 +14,24 @@ from wagtail_vector_index.storage.models import EmbeddingField
 fake = Faker()
 
 
+def get_vector_for_text(text):
+    if "Very similar" in text:
+        return [0.9, 0.1, 0.0]
+    elif "Somewhat similar" in text:
+        return [0.7, 0.3, 0.0]
+    elif "test" in text.lower():
+        return [1.0, 0.0, 0.0]
+    else:
+        return [0.1, 0.1, 0.8]
+
+
 @pytest.fixture
 def mock_embedding_backend():
     class MockEmbeddingBackend(BaseEmbeddingBackend):
         def embed(self, texts):
             def embedding_generator():
                 for text in texts:
-                    if "test" in text.lower():
-                        yield [1.0, 0.0, 0.0]
-                    elif "Very similar" in text:
-                        yield [0.9, 0.1, 0.0]
-                    elif "Somewhat similar" in text:
-                        yield [0.7, 0.3, 0.0]
-                    else:
-                        yield [0.1, 0.1, 0.8]
+                    yield get_vector_for_text(text)
 
             return embedding_generator()
 
@@ -47,12 +51,7 @@ def test_pages():
 def document_generator(test_pages):
     def gen_documents(cls, *args, **kwargs):
         for page in test_pages:
-            if "Very similar" in page.title:
-                vector = [0.9, 0.1, 0.0]
-            elif "Somewhat similar" in page.title:
-                vector = [0.7, 0.3, 0.0]
-            else:
-                vector = [0.1, 0.1, 0.8]
+            vector = get_vector_for_text(page.title)
             yield Document(
                 embedding_pk=page.pk,
                 metadata={
