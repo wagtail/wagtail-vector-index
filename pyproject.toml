@@ -27,7 +27,7 @@ requires-python = ">=3.11"
 dependencies = [
     "Django>=4.2",
     "Wagtail>=5.2",
-    "litellm>=1.41.15",
+    "litellm>=1.43.2",
     "openai>=1.28.1",
     "aiohttp>=3.9.0b0; python_version >= '3.12'",
 ]
