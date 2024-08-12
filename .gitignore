@@ -23,3 +23,4 @@ devenv.lock
 devenv.nix
 .env
 .ruff_cache
+.DS_Store

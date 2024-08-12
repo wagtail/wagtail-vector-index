@@ -63,11 +63,45 @@ class WeaviateIndexMixin(MixinBase):
         raise NotImplementedError
 
     def get_similar_documents(
-        self, query_vector: Sequence[float], *, limit: int = 5
+        self,
+        query_vector: Sequence[float],
+        *,
+        limit: int = 5,
+        similarity_threshold: float = 0.0,
     ) -> Generator[Document, None, None]:
+        """
+        Retrieve similar documents from Weaviate.
+
+        Args:
+            query_vector (Sequence[float]): The query vector to find similar documents for.
+            limit (int): The maximum number of similar documents to return. Defaults to 5.
+            similarity_threshold (float): The minimum similarity for returned documents.
+                                        Range is [0, 1] where 1 is most similar.
+                                        0 means no threshold (default).
+
+        Returns:
+            Generator[Document, None, None]: A generator of similar documents.
+
+        Note:
+            Weaviate uses cosine distance internally, where lower values indicate
+            more similar vectors. The similarity_threshold is converted to a
+            distance threshold where distance = 1 - similarity.
+        """
+        if not 0 <= similarity_threshold <= 1:
+            raise ValueError("similarity_threshold must be between 0 and 1")
+
+        # Convert similarity threshold to distance threshold
+        # Weaviate uses cosine distance, which is 1 - cosine similarity
+        distance_threshold = (
+            1 - similarity_threshold if similarity_threshold > 0 else None
+        )
+
         near_vector = {
             "vector": query_vector,
         }
+        if distance_threshold is not None:
+            near_vector["distance"] = [distance_threshold]
+
         similar_documents = (
             self.storage_provider.client.query.get(
                 self.index_name,
