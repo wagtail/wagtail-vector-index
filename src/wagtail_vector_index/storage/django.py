@@ -62,12 +62,17 @@ ModelLabel: TypeAlias = str
 ObjectId: TypeAlias = str
 
 
-def batched(iterable, n):
-    if n < 1:
-        raise ValueError("n must be at least one")
-    iterator = iter(iterable)
-    while batch := tuple(islice(iterator, n)):
-        yield batch
+# If `batched` is not available (Python < 3.12), provide a fallback implementation
+try:
+    from itertools import batched
+except ImportError:
+
+    def batched(iterable, n):
+        if n < 1:
+            raise ValueError("n must be at least one")
+        iterator = iter(iterable)
+        while batch := tuple(islice(iterator, n)):
+            yield batch
 
 
 class ModelKey(str):
