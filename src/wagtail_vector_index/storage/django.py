@@ -252,7 +252,7 @@ class ModelFromDocumentOperator(FromDocumentOperator[models.Model]):
                 pk__in=[key.object_id for key in keys]
             )
             objects_by_key.update(
-                {ModelKey.from_instance(obj): obj for obj in model_objects}
+                {ModelKey.from_instance(obj): obj async for obj in model_objects}
             )
         return objects_by_key
 
@@ -323,7 +323,7 @@ class ModelToDocumentOperator(ToDocumentOperator[models.Model]):
 
         documents_by_object_key = defaultdict(list)
         for document in documents:
-            documents_by_object_key[document.object_key].append(document)
+            documents_by_object_key[document.object_keys[0]].append(document)
 
         objects_to_rebuild = {}
 

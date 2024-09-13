@@ -250,14 +250,12 @@ class VectorIndex(Generic[ConfigClass]):
             )
         ]
 
-        sources = [
-            source
-            async for source in self.get_converter().abulk_from_documents(
-                similar_documents
-            )
-        ]
+        similar_objects = await self.get_converter().abulk_from_documents(
+            similar_documents
+        )
+        sources = [source async for source in similar_objects]
 
-        merged_context = "\n".join(doc.metadata["content"] for doc in similar_documents)
+        merged_context = "\n".join([doc.content for doc in similar_documents])
         prompt = (
             getattr(settings, "WAGTAIL_VECTOR_INDEX_QUERY_PROMPT", None)
             or "You are a helpful assistant. Use the following context to answer the question. Don't mention the context in your answer."
