@@ -6,7 +6,7 @@ from django.db import connection, models
 from django.db.models import Q
 
 
-class DocumentManager(models.Manager):
+class DocumentQuerySet(models.QuerySet):
     def for_key(self, object_key: str):
         if connection.vendor != "sqlite":
             return self.filter(object_keys__contains=[object_key])
