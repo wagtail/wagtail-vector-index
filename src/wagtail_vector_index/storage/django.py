@@ -263,8 +263,9 @@ class ModelToDocumentOperator(ToDocumentOperator[models.Model]):
     def __init__(self, object_chunker_operator_class: Type[ObjectChunkerOperator]):
         self.object_chunker_operator = object_chunker_operator_class()
 
+    @staticmethod
     def _existing_documents_match(
-        self, documents: Iterable[Document], splits: list[str]
+        documents: Iterable[Document], splits: list[str]
     ) -> bool:
         """Determine whether the documents passed in match the text content passed in"""
         if not documents:
@@ -274,7 +275,8 @@ class ModelToDocumentOperator(ToDocumentOperator[models.Model]):
 
         return set(splits) == document_content
 
-    def _keys_for_instance(self, instance: models.Model) -> list[ModelKey]:
+    @staticmethod
+    def _keys_for_instance(instance: models.Model) -> list[ModelKey]:
         """Get keys for all the parent classes and the object itself in MRO order"""
         parent_classes = instance._meta.get_parent_list()
         keys = [ModelKey(f"{cls._meta.label}:{instance.pk}") for cls in parent_classes]
@@ -424,7 +426,8 @@ class EmbeddableFieldsObjectChunkerOperator(
         splitter = self._get_text_splitter_class(chunk_size=chunk_size)
         return [f"{important_text}\n{text}" for text in splitter.split_text(text)]
 
-    def _get_text_splitter_class(self, chunk_size: int) -> TextSplitterProtocol:
+    @staticmethod
+    def _get_text_splitter_class(chunk_size: int) -> TextSplitterProtocol:
         length_calculator = NaiveTextSplitterCalculator()
         return LangchainRecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
