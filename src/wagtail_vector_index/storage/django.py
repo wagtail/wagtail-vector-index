@@ -64,7 +64,7 @@ ObjectId: TypeAlias = str
 
 # If `batched` is not available (Python < 3.12), provide a fallback implementation
 try:
-    from itertools import batched
+    from itertools import batched  # type: ignore
 except ImportError:
 
     def batched(iterable, n):
