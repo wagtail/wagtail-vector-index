@@ -19,7 +19,7 @@ If you don't need to customise the way your index behaves, you can automatically
 ```python
 from django.db import models
 from wagtail.models import Page
-from wagtail_vector_index.storage.models import VectorIndexedMixin, EmbeddingField
+from wagtail_vector_index.storage.django import VectorIndexedMixin, EmbeddingField
 
 
 class MyPage(VectorIndexedMixin, Page):
@@ -44,7 +44,7 @@ The `VectorIndexedMixin` class is made up of two other mixins:
 If you want to customise your vector index, you can build your own `VectorIndex` class and configure your model to use it with the `vector_index_class` property:
 
 ```python
-from wagtail_vector_index.storage.models import (
+from wagtail_vector_index.storage.django import (
     EmbeddableFieldsVectorIndexMixin,
     DefaultStorageVectorIndex,
 )
@@ -71,7 +71,7 @@ One of the things you might want to do with a custom index is query across multi
 To do this, override `querysets` or `_get_querysets()` on your custom Vector Index class:
 
 ```python
-from wagtail_vector_index.storage.models import (
+from wagtail_vector_index.storage.django import (
     EmbeddableFieldsVectorIndexMixin,
     DefaultStorageVectorIndex,
 )
@@ -121,7 +121,7 @@ You might want to customise this behavior. To do this you can create your own `D
 
 
 ```python
-from wagtail_vector_index.storage.models import (
+from wagtail_vector_index.storage.django import (
     EmbeddableFieldsVectorIndexMixin,
     EmbeddableFieldsDocumentConverter,
     DefaultStorageVectorIndex,

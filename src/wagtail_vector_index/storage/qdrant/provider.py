@@ -44,7 +44,7 @@ class QdrantIndexMixin(MixinBase):
     def upsert(self, *, documents: Iterable[Document]) -> None:
         points = [
             qdrant_models.PointStruct(
-                id=document.embedding_pk,
+                id=document.pk,
                 vector=document.vector,
                 payload=document.metadata,
             )

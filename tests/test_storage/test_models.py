@@ -1,4 +1,4 @@
-from wagtail_vector_index.storage.models import (
+from wagtail_vector_index.storage.django import (
     DefaultStorageVectorIndex,
     build_vector_index_base_for_storage_provider,
 )
@@ -19,7 +19,7 @@ def test_build_vector_index_base_for_default_storage_provider(settings):
 
 
 def test_build_vector_index_base_for_alias_storage_provider(settings):
-    from wagtail_vector_index.storage.pgvector import PgvectorIndexMixin
+    from wagtail_vector_index.storage.pgvector.provider import PgvectorIndexMixin
 
     settings.WAGTAIL_VECTOR_INDEX_STORAGE_PROVIDERS = {
         "default": {

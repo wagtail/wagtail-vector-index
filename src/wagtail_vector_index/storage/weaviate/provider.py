@@ -52,7 +52,7 @@ class WeaviateIndexMixin(MixinBase):
                 batch.add_data_object(
                     {
                         "metadata": json.dumps(document.metadata),
-                        "embedding_pk": document.embedding_pk,
+                        "embedding_pk": document.pk,
                     },
                     self.index_name,
                     vector=document.vector,

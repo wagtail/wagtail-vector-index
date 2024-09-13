@@ -10,7 +10,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from wagtail_vector_index.storage.base import (
-    Document,
     StorageProvider,
     StorageVectorIndexMixinProtocol,
 )
@@ -18,6 +17,8 @@ from wagtail_vector_index.storage.base import (
 from .types import DistanceMethod
 
 if TYPE_CHECKING:
+    from wagtail_vector_index.storage.models import Document
+
     from .models import PgvectorEmbedding, PgvectorEmbeddingQuerySet
 
     MixinBase = StorageVectorIndexMixinProtocol["PgvectorStorageProvider"]
@@ -61,7 +62,7 @@ class PgvectorIndexMixin(MixinBase):
         self.clear()
         self.upsert(documents=self.get_documents())
 
-    def upsert(self, *, documents: Iterable[Document]) -> None:
+    def upsert(self, *, documents: Iterable["Document"]) -> None:
         counter = 0
         objs_to_create: MutableSequence["PgvectorEmbedding"] = []
         for document in documents:
@@ -81,21 +82,19 @@ class PgvectorIndexMixin(MixinBase):
 
     def get_similar_documents(
         self, query_vector, *, limit: int = 5, similarity_threshold: float = 0.0
-    ) -> Generator[Document, None, None]:
+    ) -> Generator["Document", None, None]:
         for pgvector_embedding in self._get_similar_documents_queryset(
             query_vector, limit=limit, similarity_threshold=similarity_threshold
         ).iterator():
-            embedding = pgvector_embedding.embedding
-            yield embedding.to_document()
+            yield pgvector_embedding.document
 
     async def aget_similar_documents(
         self, query_vector, *, limit: int = 5, similarity_threshold: float = 0.0
-    ) -> AsyncGenerator[Document, None]:
+    ) -> AsyncGenerator["Document", None]:
         async for pgvector_embedding in self._get_similar_documents_queryset(
             query_vector, limit=limit, similarity_threshold=similarity_threshold
         ):
-            embedding = pgvector_embedding.embedding
-            yield embedding.to_document()
+            yield pgvector_embedding.document
 
     def _get_queryset(self) -> "PgvectorEmbeddingQuerySet":
         # objects is technically a Manager instance but we want to use the custom
@@ -109,7 +108,7 @@ class PgvectorIndexMixin(MixinBase):
     ) -> "PgvectorEmbeddingQuerySet":
         queryset = (
             self._get_queryset()
-            .select_related("embedding")
+            .select_related("document")
             .filter(embedding_output_dimensions=len(query_vector))
             .order_by_distance(
                 query_vector,
@@ -130,9 +129,9 @@ class PgvectorIndexMixin(MixinBase):
             ignore_conflicts=self.bulk_create_ignore_conflicts,
         )
 
-    def _document_to_embedding(self, document: Document) -> "PgvectorEmbedding":
+    def _document_to_embedding(self, document: "Document") -> "PgvectorEmbedding":
         return _embedding_model()(
-            embedding_id=document.embedding_pk,
+            document_id=document.pk,
             embedding_output_dimensions=len(document.vector),
             vector=document.vector,
             index_name=type(self).__name__,
