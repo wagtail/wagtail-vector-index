@@ -315,10 +315,11 @@ class ModelToDocumentOperator(ToDocumentOperator[models.Model]):
     @transaction.atomic
     def bulk_generate_documents(self, objects, *, embedding_backend):
         objects_by_key = {ModelKey.from_instance(obj): obj for obj in objects}
-        documents = Document.objects.filter(object_key__in=objects_by_key.keys())
+        documents = Document.objects.for_keys(objects_by_key.keys())
+
         documents_by_object_key = defaultdict(list)
         for document in documents:
-            documents_by_object_key[document.object_key].append(document)
+            documents_by_object_key[document.object_keys[0]].append(document)
 
         objects_to_rebuild = {}
 
