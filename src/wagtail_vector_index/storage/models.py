@@ -29,7 +29,6 @@ class DocumentQuerySet(models.QuerySet):
 class Document(models.Model):
     """Stores an embedding for an arbitrary chunk"""
 
-    object_key = models.CharField(max_length=255)
     object_keys = models.JSONField(default=list)
     vector = models.JSONField()
     content = models.TextField()
@@ -38,7 +37,8 @@ class Document(models.Model):
     objects = DocumentQuerySet.as_manager()
 
     def __str__(self):
-        return f"Document for {self.object_key}"
+        keys = ", ".join(self.object_keys)
+        return f"Document for {keys}"
 
     @classmethod
     def from_keys(cls, object_keys: list[str]) -> "Document":

@@ -27,11 +27,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name="document",
-            name="object_key",
-            field=models.CharField(max_length=255),
-        ),
-        migrations.AddField(
-            model_name="document",
             name="object_keys",
             field=models.JSONField(default=list),
         ),
