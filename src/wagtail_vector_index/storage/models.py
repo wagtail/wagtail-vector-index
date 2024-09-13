@@ -11,19 +11,12 @@ class DocumentManager(models.Manager):
             return self.filter(object_keys__contains=[object_key])
         else:
             # SQLite doesn't support the __contains lookup for JSON fields
-            # We need to use a different approach for SQLite
+            # so we use icontains which just does a string search
             return self.filter(object_keys__icontains=object_key)
 
     def for_keys(self, object_keys: list[str]):
-        if connection.vendor != "sqlite":
-            return self.filter(object_keys__contains=object_keys)
-        else:
-            # SQLite doesn't support the __contains lookup for JSON fields
-            # We need to use a different approach for SQLite
-            q_objs = [
-                Q(object_keys__icontains=object_key) for object_key in object_keys
-            ]
-            return self.filter(reduce(operator.or_, q_objs))
+        q_objs = [Q(object_keys__icontains=object_key) for object_key in object_keys]
+        return self.filter(reduce(operator.or_, q_objs))
 
 
 class Document(models.Model):
