@@ -5,7 +5,7 @@ from django.db import connection, models
 from django.db.models import Q
 
 
-class DocumentQuerySet(models.QuerySet):
+class DocumentManager(models.Manager):
     def for_key(self, object_key: str):
         if connection.vendor != "sqlite":
             return self.filter(object_keys__contains=[object_key])
@@ -34,7 +34,7 @@ class Document(models.Model):
     content = models.TextField()
     metadata = models.JSONField(default=dict)
 
-    objects = DocumentQuerySet.as_manager()
+    objects: DocumentManager = DocumentManager()
 
     def __str__(self):
         keys = ", ".join(self.object_keys)

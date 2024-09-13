@@ -80,6 +80,10 @@ class FromDocumentOperator(Protocol[ToObjectType]):
         self, documents: Iterable["Document"]
     ) -> Generator[ToObjectType, None, None]: ...
 
+    async def abulk_from_documents(
+        self, documents: Iterable["Document"]
+    ) -> AsyncGenerator[ToObjectType, None]: ...
+
 
 class ObjectChunkerOperator(Protocol[ChunkedObjectType]):
     """Protocol for a class that can chunk an object into smaller chunks"""
@@ -142,6 +146,11 @@ class DocumentConverter(ABC):
         self, documents: Iterable["Document"]
     ) -> Generator[object, None, None]:
         return self.from_document_operator.bulk_from_documents(documents)
+
+    async def abulk_from_documents(
+        self, documents: Iterable["Document"]
+    ) -> AsyncGenerator[object, None]:
+        return self.from_document_operator.abulk_from_documents(documents)
 
 
 @dataclass

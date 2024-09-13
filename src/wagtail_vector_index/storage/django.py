@@ -288,8 +288,10 @@ class ModelToDocumentOperator(ToDocumentOperator[models.Model]):
         self, object: models.Model, *, embedding_backend: BaseEmbeddingBackend
     ) -> list[Document]:
         """Use the AI backend to generate and store Documents for this object"""
-        chunks = self.object_chunker_operator.chunk_object(
-            object, chunk_size=embedding_backend.config.token_limit
+        chunks = list(
+            self.object_chunker_operator.chunk_object(
+                object, chunk_size=embedding_backend.config.token_limit
+            )
         )
         documents = Document.objects.for_key(ModelKey(object))
 
@@ -317,11 +319,11 @@ class ModelToDocumentOperator(ToDocumentOperator[models.Model]):
     @transaction.atomic
     def bulk_generate_documents(self, objects, *, embedding_backend):
         objects_by_key = {ModelKey.from_instance(obj): obj for obj in objects}
-        documents = Document.objects.for_keys(objects_by_key.keys())
+        documents = Document.objects.for_keys(list(objects_by_key.keys()))
 
         documents_by_object_key = defaultdict(list)
         for document in documents:
-            documents_by_object_key[document.object_keys[0]].append(document)
+            documents_by_object_key[document.object_key].append(document)
 
         objects_to_rebuild = {}
 
@@ -332,8 +334,10 @@ class ModelToDocumentOperator(ToDocumentOperator[models.Model]):
         # Determine which objects need to be rebuilt
         for key, object in objects_by_key.items():
             documents_for_object = documents_by_object_key[key]
-            chunks = self.object_chunker_operator.chunk_object(
-                object, chunk_size=embedding_backend.config.token_limit
+            chunks = list(
+                self.object_chunker_operator.chunk_object(
+                    object, chunk_size=embedding_backend.config.token_limit
+                )
             )
 
             if not self._existing_documents_match(documents_for_object, chunks):
@@ -354,7 +358,7 @@ class ModelToDocumentOperator(ToDocumentOperator[models.Model]):
             object_key = chunk_mapping[idx]
             documents_by_object[object_key].append((idx, embedding))
 
-        existing_documents = Document.objects.for_keys(documents_by_object.keys())
+        existing_documents = Document.objects.for_keys(list(documents_by_object.keys()))
         existing_documents.delete()
 
         for object_key, documents in documents_by_object.items():
@@ -369,7 +373,7 @@ class ModelToDocumentOperator(ToDocumentOperator[models.Model]):
 
         # Return every document object, regardless of whether it was rebuilt, retaining
         # the order they appeared in the original list
-        documents = list(Document.objects.for_keys(objects_by_key.keys()))
+        documents = list(Document.objects.for_keys(list(objects_by_key.keys())))
         return sorted(
             documents,
             key=lambda doc: list(objects_by_key.keys()).index(
