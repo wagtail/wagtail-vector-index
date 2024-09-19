@@ -1,33 +1,34 @@
 import factory
 import wagtail_factories
 from faker import Faker
-from testapp.models import DifferentPage, ExampleModel, ExamplePage
+from testapp.models import BookPage, FilmPage, VideoGame
 from wagtail_vector_index.storage.models import Embedding
 
 fake = Faker()
 
 
-class ExampleModelFactory(factory.django.DjangoModelFactory):
+class VideoGameFactory(factory.django.DjangoModelFactory):
+    title = factory.Faker("sentence")
+    description = factory.LazyFunction(lambda: "\n".join(fake.paragraphs()))
+
+    class Meta:
+        model = VideoGame
+
+
+class BookPageFactory(wagtail_factories.PageFactory):
+    class Meta:
+        model = BookPage
+
     title = factory.Faker("sentence")
     body = factory.LazyFunction(lambda: "\n".join(fake.paragraphs()))
 
-    class Meta:
-        model = ExampleModel
 
-
-class ExamplePageFactory(wagtail_factories.PageFactory):
+class FilmPageFactory(wagtail_factories.PageFactory):
     class Meta:
-        model = ExamplePage
+        model = FilmPage
 
     title = factory.Faker("sentence")
-    body = factory.LazyFunction(lambda: "\n".join(fake.paragraphs()))
-
-
-class DifferentPageFactory(wagtail_factories.PageFactory):
-    class Meta:
-        model = DifferentPage
-
-    body = factory.LazyFunction(lambda: "\n".join(fake.paragraphs()))
+    description = factory.LazyFunction(lambda: "\n".join(fake.paragraphs()))
 
 
 class EmbeddingFactory(factory.django.DjangoModelFactory):
