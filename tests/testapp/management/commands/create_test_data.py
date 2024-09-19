@@ -4,28 +4,30 @@ from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
 from wagtail.models import Page
 
-from testapp.models import Book, Film, MediaIndex, VideoGame
+from testapp.models import BookPage, FilmPage, MediaIndexPage, VideoGame
 
 
 class Command(BaseCommand):
     def import_books(self, root_page: Page):
-        book_index = MediaIndex(title="Books")
+        book_index = MediaIndexPage(title="Books")
         root_page.add_child(instance=book_index)
 
         with open("tests/testapp/fixtures/books_data.json") as f:
             books = json.load(f)
             for book in books:
-                book_page = Book(title=book["title"], body=book["description"])
+                book_page = BookPage(title=book["title"], body=book["description"])
                 book_index.add_child(instance=book_page)
 
     def import_films(self, root_page: Page):
-        film_index = MediaIndex(title="Films")
+        film_index = MediaIndexPage(title="Films")
         root_page.add_child(instance=film_index)
 
         with open("tests/testapp/fixtures/films_data.json") as f:
             films = json.load(f)
             for film in films:
-                film_page = Film(title=film["title"], description=film["description"])
+                film_page = FilmPage(
+                    title=film["title"], description=film["description"]
+                )
                 film_index.add_child(instance=film_page)
 
     def import_video_games(self):

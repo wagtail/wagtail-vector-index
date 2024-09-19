@@ -11,17 +11,17 @@ from wagtail_vector_index.storage.models import (
 from wagtail_vector_index.storage.registry import registry
 
 
-class MediaIndex(Page):
+class MediaIndexPage(Page):
     pass
 
 
-class Book(VectorIndexedMixin, Page):
+class BookPage(VectorIndexedMixin, Page):
     body = RichTextField()
 
     embedding_fields = [EmbeddingField("title", important=True), EmbeddingField("body")]
 
 
-class Film(VectorIndexedMixin, Page):
+class FilmPage(VectorIndexedMixin, Page):
     description = models.TextField()
 
     content_panels = [*Page.content_panels, FieldPanel("description")]
@@ -46,7 +46,11 @@ class VideoGame(VectorIndexedMixin, models.Model):
 
 
 class AllMediaVectorIndex(EmbeddableFieldsVectorIndexMixin, DefaultStorageVectorIndex):
-    querysets = [Book.objects.all(), Film.objects.all(), VideoGame.objects.all()]  # type: ignore
+    querysets = [
+        BookPage.objects.all(),
+        FilmPage.objects.all(),
+        VideoGame.objects.all(),
+    ]  # type: ignore
 
 
 registry.register_index(AllMediaVectorIndex())

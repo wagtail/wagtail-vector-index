@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name="Book",
+            name="BookPage",
             fields=[
                 (
                     "page_ptr",
@@ -35,7 +35,7 @@ class Migration(migrations.Migration):
             bases=("wagtailcore.page", models.Model),
         ),
         migrations.CreateModel(
-            name="Film",
+            name="FilmPage",
             fields=[
                 (
                     "page_ptr",
@@ -56,7 +56,7 @@ class Migration(migrations.Migration):
             bases=("wagtailcore.page", models.Model),
         ),
         migrations.CreateModel(
-            name="MediaIndex",
+            name="MediaIndexPage",
             fields=[
                 (
                     "page_ptr",
