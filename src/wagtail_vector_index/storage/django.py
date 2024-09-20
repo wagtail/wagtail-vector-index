@@ -169,22 +169,17 @@ class ModelFromDocumentOperator(FromDocumentOperator[models.Model]):
             raise IndexedTypeFromDocumentError("No object found for document") from e
 
     def bulk_from_documents(
-        self, documents: Iterable[Document]
+        self, documents: Sequence[Document]
     ) -> Generator[models.Model, None, None]:
-        documents = tuple(documents)
-
         keys_by_model_label = self._get_keys_by_model_label(documents)
         objects_by_key = self._get_models_by_key(keys_by_model_label)
 
         yield from self._get_deduplicated_objects_generator(documents, objects_by_key)
 
     async def abulk_from_documents(
-        self, documents: Iterable[Document]
+        self, documents: Sequence[Document]
     ) -> AsyncGenerator[models.Model, None]:
         """A copy of `bulk_from_documents`, but async"""
-        # Force evaluate generators to allow value to be reused
-        documents = tuple(documents)
-
         keys_by_model_label = self._get_keys_by_model_label(documents)
         objects_by_key = await self._aget_models_by_key(keys_by_model_label)
 

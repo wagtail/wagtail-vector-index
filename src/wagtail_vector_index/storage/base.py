@@ -143,12 +143,12 @@ class DocumentConverter(ABC):
         )
 
     def bulk_from_documents(
-        self, documents: Iterable["Document"]
+        self, documents: Sequence["Document"]
     ) -> Generator[object, None, None]:
         return self.from_document_operator.bulk_from_documents(documents)
 
-    async def abulk_from_documents(
-        self, documents: Iterable["Document"]
+    def abulk_from_documents(
+        self, documents: Sequence["Document"]
     ) -> AsyncGenerator[object, None]:
         return self.from_document_operator.abulk_from_documents(documents)
 
