@@ -250,9 +250,7 @@ class VectorIndex(Generic[ConfigClass]):
             )
         ]
 
-        similar_objects = await self.get_converter().abulk_from_documents(
-            similar_documents
-        )
+        similar_objects = self.get_converter().abulk_from_documents(similar_documents)
         sources = [source async for source in similar_objects]
 
         merged_context = "\n".join([doc.content for doc in similar_documents])
@@ -310,8 +308,10 @@ class VectorIndex(Generic[ConfigClass]):
             query_embedding = next(self.get_embedding_backend().embed([query]))
         except StopIteration as e:
             raise ValueError("No embeddings were generated for the given query.") from e
-        similar_documents = self.get_similar_documents(
-            query_embedding, limit=limit, similarity_threshold=similarity_threshold
+        similar_documents = list(
+            self.get_similar_documents(
+                query_embedding, limit=limit, similarity_threshold=similarity_threshold
+            )
         )
         return list(self.get_converter().bulk_from_documents(similar_documents))
 

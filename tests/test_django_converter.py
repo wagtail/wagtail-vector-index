@@ -304,8 +304,10 @@ def test_convert_multiple_documents_to_objects():
     example_pages = ExamplePageFactory.create_batch(5)
     different_pages = DifferentPageFactory.create_batch(5)
     all_objects = list(example_objects + example_pages + different_pages)
-    documents = converter.bulk_to_documents(
-        all_objects, embedding_backend=get_embedding_backend("default")
+    documents = list(
+        converter.bulk_to_documents(
+            all_objects, embedding_backend=get_embedding_backend("default")
+        )
     )
     recovered_objects = list(converter.bulk_from_documents(documents))
     assert recovered_objects == all_objects
