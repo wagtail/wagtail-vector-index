@@ -31,13 +31,6 @@ class DocumentManager(models.Manager["Document"]):
     def for_keys(self, object_keys: list[str]) -> DocumentQuerySet: ...
 
 
-class DocumentManager(models.Manager["Document"]):
-    # Workaround for typing issues
-    def for_key(self, object_key: str) -> DocumentQuerySet: ...
-
-    def for_keys(self, object_keys: list[str]) -> DocumentQuerySet: ...
-
-
 class Document(models.Model):
     """Stores an embedding for an arbitrary chunk"""
 
