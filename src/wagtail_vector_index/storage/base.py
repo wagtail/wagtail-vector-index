@@ -42,6 +42,8 @@ class StorageVectorIndexMixinProtocol(Protocol[StorageProviderClass]):
 
     def get_documents(self) -> Iterable["Document"]: ...
 
+    async def aget_documents(self) -> AsyncGenerator["Document", None]: ...
+
     def _get_storage_provider(self) -> StorageProviderClass: ...
 
 
@@ -102,6 +104,10 @@ class ToDocumentOperator(Protocol[FromObjectType]):
         self, object: FromObjectType, *, embedding_backend: BaseEmbeddingBackend
     ) -> Generator["Document", None, None]: ...
 
+    async def ato_documents(
+        self, object: FromObjectType, *, embedding_backend: BaseEmbeddingBackend
+    ) -> AsyncGenerator["Document", None]: ...
+
     def bulk_to_documents(
         self,
         objects: Iterable[FromObjectType],
@@ -109,9 +115,22 @@ class ToDocumentOperator(Protocol[FromObjectType]):
         embedding_backend: BaseEmbeddingBackend,
     ) -> Generator["Document", None, None]: ...
 
+    async def abulk_to_documents(
+        self,
+        objects: Iterable[FromObjectType],
+        *,
+        embedding_backend: BaseEmbeddingBackend,
+    ) -> AsyncGenerator["Document", None]: ...
+
 
 class DocumentConverter(ABC):
-    """Base class for a DocumentConverter that can convert objects to Documents and vice versa"""
+    """Base class for a DocumentConverter that can convert objects to Documents and vice versa
+
+    Note on async methods:
+    Some async (a-prefixed) methods in this class return AsyncGenerators directly from
+    the methods of the to_document_operator or from_document_operator, so they aren't marked
+    with the 'async' keyword to prevent the methods from being wrapped in a Coroutine.
+    """
 
     to_document_operator_class: Type[ToDocumentOperator]
     from_document_operator_class: Type[FromDocumentOperator]
@@ -132,13 +151,33 @@ class DocumentConverter(ABC):
             object, embedding_backend=embedding_backend
         )
 
+    def ato_documents(
+        self, object: object, *, embedding_backend: BaseEmbeddingBackend
+    ) -> AsyncGenerator["Document", None]:
+        return self.to_document_operator.ato_documents(
+            object, embedding_backend=embedding_backend
+        )
+
     def from_document(self, document: "Document") -> object:
         return self.from_document_operator.from_document(document)
+
+    def afrom_document(self, document: "Document") -> object:
+        return self.from_document_operator.afrom_document(document)
 
     def bulk_to_documents(
         self, objects: Iterable[object], *, embedding_backend: BaseEmbeddingBackend
     ) -> Generator["Document", None, None]:
         return self.to_document_operator.bulk_to_documents(
+            objects, embedding_backend=embedding_backend
+        )
+
+    def abulk_to_documents(
+        self,
+        objects: Iterable[object],
+        *,
+        embedding_backend: BaseEmbeddingBackend,
+    ) -> AsyncGenerator["Document", None]:
+        return self.to_document_operator.abulk_to_documents(
             objects, embedding_backend=embedding_backend
         )
 
@@ -184,6 +223,9 @@ class VectorIndex(Generic[ConfigClass]):
         return get_embedding_backend(self.embedding_backend_alias)
 
     def get_documents(self) -> Iterable["Document"]:
+        raise NotImplementedError
+
+    async def aget_documents(self) -> AsyncGenerator["Document", None]:
         raise NotImplementedError
 
     def get_converter(self) -> DocumentConverter:
@@ -297,6 +339,31 @@ class VectorIndex(Generic[ConfigClass]):
         return [
             obj
             for obj in converter.bulk_from_documents(similar_documents)
+            if include_self or obj != object
+        ]
+
+    async def afind_similar(
+        self,
+        object,
+        *,
+        include_self: bool = False,
+        limit: int = 5,
+        similarity_threshold: float = 0.0,
+    ) -> list:
+        """Find similar objects to the given object asynchronously"""
+        converter = self.get_converter()
+        similar_documents = []
+        async for document in converter.ato_documents(
+            object, embedding_backend=self.get_embedding_backend()
+        ):
+            similar_docs = self.aget_similar_documents(
+                document.vector, limit=limit, similarity_threshold=similarity_threshold
+            )
+            similar_documents.extend([doc async for doc in similar_docs])
+
+        return [
+            obj
+            async for obj in converter.abulk_from_documents(similar_documents)
             if include_self or obj != object
         ]
 

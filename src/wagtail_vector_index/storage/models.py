@@ -1,4 +1,5 @@
 import operator
+from collections.abc import AsyncGenerator
 from functools import reduce
 from typing import cast
 
@@ -15,9 +16,26 @@ class DocumentQuerySet(models.QuerySet):
             # so we use icontains which just does a string search
             return self.filter(object_keys__icontains=object_key)
 
+    async def afor_key(self, object_key: str) -> AsyncGenerator["Document", None]:
+        if connection.vendor != "sqlite":
+            async for doc in self.filter(object_keys__contains=[object_key]):
+                yield doc
+        else:
+            # SQLite doesn't support the __contains lookup for JSON fields
+            # so we use icontains which just does a string search
+            async for doc in self.filter(object_keys__icontains=object_key):
+                yield doc
+
     def for_keys(self, object_keys: list[str]):
         q_objs = [Q(object_keys__icontains=object_key) for object_key in object_keys]
         return self.filter(reduce(operator.or_, q_objs))
+
+    async def afor_keys(
+        self, object_keys: list[str]
+    ) -> AsyncGenerator["Document", None]:
+        q_objs = [Q(object_keys__icontains=object_key) for object_key in object_keys]
+        async for doc in self.filter(reduce(operator.or_, q_objs)):
+            yield doc
 
     @classmethod
     def as_manager(cls) -> "DocumentManager":
