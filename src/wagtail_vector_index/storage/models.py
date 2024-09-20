@@ -1,5 +1,6 @@
 import operator
 from functools import reduce
+from typing import cast
 
 from django.db import connection, models
 from django.db.models import Q
@@ -18,6 +19,10 @@ class DocumentQuerySet(models.QuerySet):
         q_objs = [Q(object_keys__icontains=object_key) for object_key in object_keys]
         return self.filter(reduce(operator.or_, q_objs))
 
+    @classmethod
+    def as_manager(cls) -> "DocumentManager":
+        return cast(DocumentManager, super().as_manager())
+
 
 class DocumentManager(models.Manager["Document"]):
     # Workaround for typing issues
@@ -34,7 +39,7 @@ class Document(models.Model):
     content = models.TextField()
     metadata = models.JSONField(default=dict)
 
-    objects: DocumentManager = DocumentManager.from_queryset(DocumentQuerySet)()
+    objects: DocumentManager = DocumentQuerySet.as_manager()
 
     def __str__(self):
         keys = ", ".join(self.object_keys)
