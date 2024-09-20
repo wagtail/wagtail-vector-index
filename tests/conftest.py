@@ -65,3 +65,34 @@ def use_mock_ai_backend(settings):
             }
         },
     }
+
+
+@pytest.fixture
+def get_vector_for_text():
+    def _get_vector_for_text(text):
+        if "Very similar" in text:
+            return [0.9, 0.1, 0.0]
+        elif "Somewhat similar" in text:
+            return [0.7, 0.3, 0.0]
+        elif "test" in text.lower():
+            return [1.0, 0.0, 0.0]
+        else:
+            return [0.1, 0.1, 0.8]
+
+    return _get_vector_for_text
+
+
+@pytest.fixture
+def mock_embedding_backend(get_vector_for_text):
+    class MockEmbeddingBackend(BaseEmbeddingBackend):
+        def __init__(self):
+            self.config = type("Config", (), {"token_limit": 100})()
+
+        def embed(self, texts):
+            def embedding_generator():
+                for text in texts:
+                    yield get_vector_for_text(text)
+
+            return embedding_generator()
+
+    return MockEmbeddingBackend()
