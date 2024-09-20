@@ -5,7 +5,7 @@ from django.db import connection, models
 from django.db.models import Q
 
 
-class DocumentManager(models.Manager):
+class DocumentQuerySet(models.QuerySet):
     def for_key(self, object_key: str):
         if connection.vendor != "sqlite":
             return self.filter(object_keys__contains=[object_key])
@@ -19,6 +19,13 @@ class DocumentManager(models.Manager):
         return self.filter(reduce(operator.or_, q_objs))
 
 
+class DocumentManager(models.Manager["Document"]):
+    # Workaround for typing issues
+    def for_key(self, object_key: str) -> DocumentQuerySet: ...
+
+    def for_keys(self, object_keys: list[str]) -> DocumentQuerySet: ...
+
+
 class Document(models.Model):
     """Stores an embedding for an arbitrary chunk"""
 
@@ -27,7 +34,7 @@ class Document(models.Model):
     content = models.TextField()
     metadata = models.JSONField(default=dict)
 
-    objects: DocumentManager = DocumentManager()
+    objects: DocumentManager = DocumentManager.from_queryset(DocumentQuerySet)()
 
     def __str__(self):
         keys = ", ".join(self.object_keys)
