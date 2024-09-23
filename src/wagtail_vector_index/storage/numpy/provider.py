@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from wagtail_vector_index.storage.base import (
-    Document,
     StorageProvider,
     StorageVectorIndexMixinProtocol,
 )
@@ -19,6 +18,8 @@ class ProviderConfig: ...
 
 
 if TYPE_CHECKING:
+    from wagtail_vector_index.storage.models import Document
+
     MixinBase = StorageVectorIndexMixinProtocol["NumpyStorageProvider"]
 else:
     MixinBase = object
@@ -28,7 +29,7 @@ class NumpyIndexMixin(MixinBase):
     def rebuild_index(self) -> None:
         self.get_documents()
 
-    def upsert(self, *, documents: Iterable[Document]) -> None:
+    def upsert(self, *, documents: Iterable["Document"]) -> None:
         pass
 
     def delete(self, *, document_ids: Sequence[str]) -> None:
@@ -40,7 +41,7 @@ class NumpyIndexMixin(MixinBase):
         *,
         limit: int = 5,
         similarity_threshold: float = 0.0,
-    ) -> Generator[Document, None, None]:
+    ) -> Generator["Document", None, None]:
         similarities = []
         for document in self.get_documents():
             cosine_similarity = (

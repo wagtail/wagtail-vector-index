@@ -63,8 +63,8 @@ class PgvectorEmbeddingManager(models.Manager.from_queryset(PgvectorEmbeddingQue
 
 
 class PgvectorEmbedding(models.Model):
-    embedding = models.ForeignKey(
-        "wagtail_vector_index.Embedding", on_delete=models.CASCADE, related_name="+"
+    document = models.ForeignKey(
+        "wagtail_vector_index.Document", on_delete=models.CASCADE, related_name="+"
     )
     vector = VectorField()
     embedding_output_dimensions = models.PositiveIntegerField(db_index=True)
@@ -75,7 +75,7 @@ class PgvectorEmbedding(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["embedding", "index_name", "embedding_output_dimensions"],
+                fields=["document", "index_name", "embedding_output_dimensions"],
                 name="unique_pgvector_embedding_per_index_and_dimensions",
             )
         ]
@@ -87,4 +87,4 @@ class PgvectorEmbedding(models.Model):
         #       https://github.com/pgvector/pgvector-python/tree/master#django
 
     def __str__(self) -> str:
-        return "pgvector embedding for {}".format(self.embedding)
+        return "pgvector embedding for {}".format(self.document)

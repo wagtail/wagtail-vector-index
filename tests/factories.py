@@ -2,7 +2,7 @@ import factory
 import wagtail_factories
 from faker import Faker
 from testapp.models import DifferentPage, ExampleModel, ExamplePage
-from wagtail_vector_index.storage.models import Embedding
+from wagtail_vector_index.storage.models import Document
 
 fake = Faker()
 
@@ -30,9 +30,10 @@ class DifferentPageFactory(wagtail_factories.PageFactory):
     body = factory.LazyFunction(lambda: "\n".join(fake.paragraphs()))
 
 
-class EmbeddingFactory(factory.django.DjangoModelFactory):
+class DocumentFactory(factory.django.DjangoModelFactory):
     class Meta:
-        model = Embedding
+        model = Document
 
     vector = factory.LazyFunction(lambda: [fake.pyfloat() for _ in range(300)])
     content = factory.LazyFunction(lambda: "\n".join(fake.paragraphs()))
+    object_keys = factory.Iterator([fake.uuid4() for _ in range(3)])

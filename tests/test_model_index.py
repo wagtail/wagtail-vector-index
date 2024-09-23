@@ -3,7 +3,7 @@ from factories import ExamplePageFactory
 from faker import Faker
 from testapp.models import ExamplePage
 from wagtail_vector_index.storage import registry
-from wagtail_vector_index.storage.models import Embedding
+from wagtail_vector_index.storage.models import Document
 
 fake = Faker()
 
@@ -46,4 +46,4 @@ def test_rebuilding_model_index_creates_embeddings():
     ExamplePageFactory.create_batch(10)
     index = ExamplePage.vector_index
     index.rebuild_index()
-    assert Embedding.objects.count() == 10
+    assert Document.objects.count() == 10

@@ -1,7 +1,8 @@
 import copy
+from abc import ABC
 from collections.abc import AsyncGenerator, Generator, Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, ClassVar, Generic, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Protocol, Type, TypeVar
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
@@ -12,9 +13,15 @@ from wagtail_vector_index.storage import (
     get_storage_provider,
 )
 
+if TYPE_CHECKING:
+    from wagtail_vector_index.storage.models import Document
+
 StorageProviderClass = TypeVar("StorageProviderClass")
 ConfigClass = TypeVar("ConfigClass")
 IndexMixin = TypeVar("IndexMixin")
+FromObjectType = TypeVar("FromObjectType", contravariant=True)
+ChunkedObjectType = TypeVar("ChunkedObjectType", covariant=False)
+ToObjectType = TypeVar("ToObjectType", covariant=True)
 
 
 class DocumentRetrievalVectorIndexMixinProtocol(Protocol):
@@ -64,39 +71,86 @@ class StorageProvider(Generic[ConfigClass, IndexMixin]):
         return super().__init_subclass__(**kwargs)
 
 
-@dataclass(kw_only=True, frozen=True)
-class Document:
-    """Representation of some content that is passed to vector storage backends.
+class FromDocumentOperator(Protocol[ToObjectType]):
+    """Protocol for a class that can convert a Document to an object"""
 
-    A document is usually a part of a model, e.g. some content split out from
-    a VectorIndexedMixin model. One model instance may have multiple documents.
+    def from_document(self, document: "Document") -> ToObjectType: ...
 
-    The embedding_pk on a Document must be the PK of an Embedding model instance.
-    """
+    def bulk_from_documents(
+        self, documents: Iterable["Document"]
+    ) -> Generator[ToObjectType, None, None]: ...
 
-    vector: Sequence[float]
-    embedding_pk: int
-    metadata: Mapping
+    async def abulk_from_documents(
+        self, documents: Iterable["Document"]
+    ) -> AsyncGenerator[ToObjectType, None]: ...
 
 
-class DocumentConverter(Protocol):
+class ObjectChunkerOperator(Protocol[ChunkedObjectType]):
+    """Protocol for a class that can chunk an object into smaller chunks"""
+
+    def chunk_object(
+        self, object: ChunkedObjectType, chunk_size: int
+    ) -> Iterable[ChunkedObjectType]: ...
+
+
+class ToDocumentOperator(Protocol[FromObjectType]):
+    """Protocol for a class that can convert an object to a Document"""
+
+    def __init__(self, object_chunker_operator_class: Type[ObjectChunkerOperator]): ...
+
+    def to_documents(
+        self, object: FromObjectType, *, embedding_backend: BaseEmbeddingBackend
+    ) -> Generator["Document", None, None]: ...
+
+    def bulk_to_documents(
+        self,
+        objects: Iterable[FromObjectType],
+        *,
+        embedding_backend: BaseEmbeddingBackend,
+    ) -> Generator["Document", None, None]: ...
+
+
+class DocumentConverter(ABC):
+    """Base class for a DocumentConverter that can convert objects to Documents and vice versa"""
+
+    to_document_operator_class: Type[ToDocumentOperator]
+    from_document_operator_class: Type[FromDocumentOperator]
+    object_chunker_operator_class: Type[ObjectChunkerOperator]
+
+    @property
+    def to_document_operator(self) -> ToDocumentOperator:
+        return self.to_document_operator_class(self.object_chunker_operator_class)
+
+    @property
+    def from_document_operator(self) -> FromDocumentOperator:
+        return self.from_document_operator_class()
+
     def to_documents(
         self, object: object, *, embedding_backend: BaseEmbeddingBackend
-    ) -> Generator[Document, None, None]: ...
+    ) -> Generator["Document", None, None]:
+        return self.to_document_operator.to_documents(
+            object, embedding_backend=embedding_backend
+        )
 
-    def from_document(self, document: Document) -> object: ...
+    def from_document(self, document: "Document") -> object:
+        return self.from_document_operator.from_document(document)
 
     def bulk_to_documents(
         self, objects: Iterable[object], *, embedding_backend: BaseEmbeddingBackend
-    ) -> Generator[Document, None, None]: ...
+    ) -> Generator["Document", None, None]:
+        return self.to_document_operator.bulk_to_documents(
+            objects, embedding_backend=embedding_backend
+        )
 
     def bulk_from_documents(
-        self, documents: Iterable[Document]
-    ) -> Generator[object, None, None]: ...
+        self, documents: Sequence["Document"]
+    ) -> Generator[object, None, None]:
+        return self.from_document_operator.bulk_from_documents(documents)
 
-    async def abulk_from_documents(
-        self, documents: Iterable[Document]
-    ) -> AsyncGenerator[object, None]: ...
+    def abulk_from_documents(
+        self, documents: Sequence["Document"]
+    ) -> AsyncGenerator[object, None]:
+        return self.from_document_operator.abulk_from_documents(documents)
 
 
 @dataclass
@@ -129,7 +183,7 @@ class VectorIndex(Generic[ConfigClass]):
     def get_embedding_backend(self) -> BaseEmbeddingBackend:
         return get_embedding_backend(self.embedding_backend_alias)
 
-    def get_documents(self) -> Iterable[Document]:
+    def get_documents(self) -> Iterable["Document"]:
         raise NotImplementedError
 
     def get_converter(self) -> DocumentConverter:
@@ -159,7 +213,7 @@ class VectorIndex(Generic[ConfigClass]):
 
         sources = list(self.get_converter().bulk_from_documents(similar_documents))
 
-        merged_context = "\n".join(doc.metadata["content"] for doc in similar_documents)
+        merged_context = "\n".join(doc.content for doc in similar_documents)
         prompt = (
             getattr(settings, "WAGTAIL_VECTOR_INDEX_QUERY_PROMPT", None)
             or "You are a helpful assistant. Use the following context to answer the question. Don't mention the context in your answer."
@@ -196,14 +250,10 @@ class VectorIndex(Generic[ConfigClass]):
             )
         ]
 
-        sources = [
-            source
-            async for source in self.get_converter().abulk_from_documents(
-                similar_documents
-            )
-        ]
+        similar_objects = self.get_converter().abulk_from_documents(similar_documents)
+        sources = [source async for source in similar_objects]
 
-        merged_context = "\n".join(doc.metadata["content"] for doc in similar_documents)
+        merged_context = "\n".join([doc.content for doc in similar_documents])
         prompt = (
             getattr(settings, "WAGTAIL_VECTOR_INDEX_QUERY_PROMPT", None)
             or "You are a helpful assistant. Use the following context to answer the question. Don't mention the context in your answer."
@@ -258,8 +308,10 @@ class VectorIndex(Generic[ConfigClass]):
             query_embedding = next(self.get_embedding_backend().embed([query]))
         except StopIteration as e:
             raise ValueError("No embeddings were generated for the given query.") from e
-        similar_documents = self.get_similar_documents(
-            query_embedding, limit=limit, similarity_threshold=similarity_threshold
+        similar_documents = list(
+            self.get_similar_documents(
+                query_embedding, limit=limit, similarity_threshold=similarity_threshold
+            )
         )
         return list(self.get_converter().bulk_from_documents(similar_documents))
 
@@ -293,10 +345,10 @@ class VectorIndex(Generic[ConfigClass]):
         *,
         limit: int = 5,
         similarity_threshold: float = 0.0,
-    ) -> Generator[Document, None, None]:
+    ) -> Generator["Document", None, None]:
         raise NotImplementedError
 
     def aget_similar_documents(
         self, query_vector, *, limit: int = 5, similarity_threshold: float = 0.0
-    ) -> AsyncGenerator[Document, None]:
+    ) -> AsyncGenerator["Document", None]:
         raise NotImplementedError

@@ -8,8 +8,9 @@ from wagtail_vector_index.ai_utils.backends.base import BaseEmbeddingBackend
 from wagtail_vector_index.storage import (
     registry,
 )
-from wagtail_vector_index.storage.base import Document, VectorIndex
-from wagtail_vector_index.storage.models import EmbeddingField
+from wagtail_vector_index.storage.base import VectorIndex
+from wagtail_vector_index.storage.django import EmbeddingField, ModelKey
+from wagtail_vector_index.storage.models import Document
 
 fake = Faker()
 
@@ -53,7 +54,7 @@ def document_generator(test_pages):
         for page in test_pages:
             vector = get_vector_for_text(page.title)
             yield Document(
-                embedding_pk=page.pk,
+                object_keys=[ModelKey.from_instance(page)],
                 metadata={
                     "title": page.title,
                     "object_id": str(page.pk),
@@ -75,7 +76,7 @@ def mock_vector_index(mocker, mock_embedding_backend, document_generator):
     )
 
     mocker.patch(
-        "wagtail_vector_index.storage.models.EmbeddableFieldsDocumentConverter.bulk_to_documents",
+        "wagtail_vector_index.storage.django.EmbeddableFieldsDocumentConverter.bulk_to_documents",
         side_effect=document_generator,
     )
 
@@ -132,7 +133,9 @@ def test_index_get_documents_returns_at_least_one_document_per_page():
     index = registry["ExamplePageIndex"]
     index.rebuild_index()
     documents = index.get_documents()
-    found_pages = {document.metadata.get("object_id") for document in documents}
+    found_pages = {
+        ModelKey(document.object_keys[0]).object_id for document in documents
+    }
 
     assert found_pages == {str(page.pk) for page in pages}
 
@@ -147,7 +150,8 @@ def test_index_with_multiple_models():
     example_pages_ids = {str(page.pk) for page in example_pages}
     different_page_ids = {str(page.pk) for page in different_pages}
     found_page_ids = {
-        document.metadata["object_id"] for document in index.get_documents()
+        ModelKey(document.object_keys[0]).object_id
+        for document in index.get_documents()
     }
 
     assert found_page_ids == example_pages_ids.union(different_page_ids)
@@ -172,7 +176,7 @@ def test_similar_returns_no_duplicates(mocker):
         yield from pages
 
     mocker.patch(
-        "wagtail_vector_index.storage.models.EmbeddableFieldsDocumentConverter.bulk_from_documents",
+        "wagtail_vector_index.storage.django.EmbeddableFieldsDocumentConverter.bulk_from_documents",
         side_effect=gen_pages,
     )
 
@@ -197,7 +201,7 @@ def test_query_passes_sources_to_backend(mocker):
         yield from documents
 
     query_mock = mocker.patch("conftest.ChatMockBackend.chat")
-    expected_content = "\n".join([doc.metadata["content"] for doc in documents])
+    expected_content = "\n".join([doc.content for doc in documents])
     similar_documents_mock = mocker.patch.object(index, "get_similar_documents")
     similar_documents_mock.side_effect = get_similar_documents
     index.query("")
@@ -215,7 +219,7 @@ def test_query_with_similarity_threshold(mocker):
         yield from documents
 
     query_mock = mocker.patch("conftest.ChatMockBackend.chat")
-    expected_content = "\n".join([doc.metadata["content"] for doc in documents])
+    expected_content = "\n".join([doc.content for doc in documents])
     similar_documents_mock = mocker.patch.object(index, "get_similar_documents")
     similar_documents_mock.side_effect = get_similar_documents
     index.query("", similarity_threshold=0.5)
@@ -232,7 +236,7 @@ def test_find_similar_with_similarity_threshold(mocker):
         yield from pages
 
     mocker.patch(
-        "wagtail_vector_index.storage.models.EmbeddableFieldsDocumentConverter.bulk_from_documents",
+        "wagtail_vector_index.storage.django.EmbeddableFieldsDocumentConverter.bulk_from_documents",
         side_effect=gen_pages,
     )
 
