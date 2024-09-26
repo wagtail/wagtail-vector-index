@@ -95,4 +95,7 @@ def mock_embedding_backend(get_vector_for_text):
 
             return embedding_generator()
 
+        async def aembed(self, texts):
+            return self.embed(texts)
+
     return MockEmbeddingBackend()

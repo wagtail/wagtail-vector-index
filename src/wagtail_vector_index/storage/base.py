@@ -382,6 +382,27 @@ class VectorIndex(Generic[ConfigClass]):
         )
         return list(self.get_converter().bulk_from_documents(similar_documents))
 
+    async def asearch(
+        self, query: str, *, limit: int = 5, similarity_threshold: float = 0.0
+    ) -> list:
+        """Perform a search against the index, returning only a list of matching sources"""
+        try:
+            query_embedding = next(await self.get_embedding_backend().aembed([query]))
+        except StopIteration as e:
+            raise ValueError("No embeddings were generated for the given query.") from e
+        similar_documents = [
+            doc
+            async for doc in self.aget_similar_documents(
+                query_embedding, limit=limit, similarity_threshold=similarity_threshold
+            )
+        ]
+        return [
+            obj
+            async for obj in self.get_converter().abulk_from_documents(
+                similar_documents
+            )
+        ]
+
     # Utilities
 
     def _get_storage_provider(self):

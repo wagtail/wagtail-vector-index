@@ -253,6 +253,8 @@ class TestQueryOperations:
         first_call_messages = query_mock.call_args.kwargs["messages"]
         assert first_call_messages[1] == {"content": expected_content, "role": "system"}
 
+
+class TestSearchOperations:
     @pytest.mark.django_db
     @pytest.mark.parametrize(
         "similarity_threshold, expected_count, expected_titles",
@@ -286,3 +288,9 @@ class TestQueryOperations:
 
         if expected_count > 0:
             assert {result.title for result in results} == expected_titles
+
+    @pytest.mark.django_db(transaction=True)
+    async def test_asearch(self, mock_vector_index):
+        objs = [obj async for obj in ExampleModel.objects.all()]
+        actual = await mock_vector_index.asearch("test", limit=100)
+        assert set(actual) == set(objs), f"Expected {objs}, but got {actual}"
