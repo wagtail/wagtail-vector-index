@@ -40,9 +40,9 @@ A `VectorIndex` will be generated for your model which can be accessed using the
 index = MyPage.vector_index
 ```
 
-If you want more control over how content is indexed, you can instead create your own indexes. See [./vector-indexes.md](Vector Indexes) for more details.
+If you want more control over how content is indexed, you can instead create your own indexes. See [Vector Indexes](./vector-indexes.md) for more details.
 
-Now you can index your content, see [./using-indexes](Using Indexes) for how to make these indexes work for you.
+Now you can index your content, see [Using Indexes](./using-indexes.md) for how to make these indexes work for you.
 
 ## Updating indexes
 
