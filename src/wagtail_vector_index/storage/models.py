@@ -48,6 +48,10 @@ class DocumentManager(models.Manager["Document"]):
 
     def for_keys(self, object_keys: list[str]) -> DocumentQuerySet: ...
 
+    def afor_key(self, object_key: str) -> AsyncGenerator["Document", None]: ...
+
+    def afor_keys(self, object_keys: list[str]) -> AsyncGenerator["Document", None]: ...
+
 
 class Document(models.Model):
     """Stores an embedding for an arbitrary chunk"""
