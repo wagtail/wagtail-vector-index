@@ -72,7 +72,7 @@ project settings:
 ```python
 WAGTAIL_VECTOR_INDEX_STORAGE_PROVIDERS = {
     "default": {
-        "STORAGE_PROVIDER": "wagtail_vector_index.storage.pgvector.backend.PgvectorBackend",
+        "STORAGE_PROVIDER": "wagtail_vector_index.storage.pgvector.PgvectorStorageProvider",
     }
 }
 ```
