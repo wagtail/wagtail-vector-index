@@ -1,6 +1,7 @@
 import factory
 import pytest
 from factories import (
+    AsyncExampleModelFactory,
     DifferentPageFactory,
     DocumentFactory,
     ExampleModelFactory,
@@ -17,11 +18,13 @@ from wagtail_vector_index.storage.django import (
     ModelLabel,
     ModelToDocumentOperator,
 )
+from wagtail_vector_index.storage.models import Document
 
 fake = Faker()
 
 
 class TestChunking:
+    @pytest.mark.django_db
     def test_get_chunks_splits_content_into_multiple_chunks(
         self, patch_embedding_fields
     ):
@@ -32,6 +35,7 @@ class TestChunking:
             chunks = chunker.chunk_object(instance, chunk_size=100)
             assert len(chunks) > 1
 
+    @pytest.mark.django_db
     def test_get_chunks_adds_important_field_to_each_chunk(
         self, patch_embedding_fields
     ):
@@ -311,3 +315,40 @@ def test_convert_multiple_documents_to_objects():
     )
     recovered_objects = list(converter.bulk_from_documents(documents))
     assert recovered_objects == all_objects
+
+
+class TestToDocumentOperatorAsync:
+    @pytest.mark.django_db(transaction=True)
+    async def test_ato_documents(self, mock_embedding_backend):
+        instance = await AsyncExampleModelFactory.create(
+            title="Important Title", body=fake.text(max_nb_chars=200)
+        )
+        operator = ModelToDocumentOperator(EmbeddableFieldsObjectChunkerOperator)
+        documents = [
+            doc
+            async for doc in operator.ato_documents(
+                instance, embedding_backend=mock_embedding_backend
+            )
+        ]
+
+        assert len(documents) > 0
+        assert all(isinstance(doc, Document) for doc in documents)
+        assert all(instance.title in doc.content for doc in documents)
+
+    @pytest.mark.django_db(transaction=True)
+    async def test_abulk_to_documents(self, mock_embedding_backend):
+        instances = await AsyncExampleModelFactory.create_batch(3)
+        operator = ModelToDocumentOperator(EmbeddableFieldsObjectChunkerOperator)
+
+        documents = [
+            doc
+            async for doc in operator.abulk_to_documents(
+                instances, embedding_backend=mock_embedding_backend
+            )
+        ]
+
+        assert len(documents) > 0
+        assert all(isinstance(doc, Document) for doc in documents)
+        assert any(instances[0].title in doc.content for doc in documents)
+        assert any(instances[1].title in doc.content for doc in documents)
+        assert any(instances[2].title in doc.content for doc in documents)
