@@ -9,6 +9,7 @@ from wagtail_vector_index.storage.base import (
     StorageProvider,
     StorageVectorIndexMixinProtocol,
 )
+from wagtail_vector_index.storage.models import Document
 
 logger = logging.Logger(__name__)
 
@@ -18,8 +19,6 @@ class ProviderConfig: ...
 
 
 if TYPE_CHECKING:
-    from wagtail_vector_index.storage.models import Document
-
     MixinBase = StorageVectorIndexMixinProtocol["NumpyStorageProvider"]
 else:
     MixinBase = object
@@ -43,7 +42,12 @@ class NumpyIndexMixin(MixinBase):
         similarity_threshold: float = 0.0,
     ) -> Generator["Document", None, None]:
         similarities = []
-        for document in self.get_documents():
+        document_keys = [document.object_keys[0] for document in self.get_documents()]
+        document_objs = Document.objects.for_keys(document_keys).apply_filters(
+            self._filters
+        )
+
+        for document in document_objs:
             cosine_similarity = (
                 np.dot(query_vector, document.vector)
                 / np.linalg.norm(query_vector)

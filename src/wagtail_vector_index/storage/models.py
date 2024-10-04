@@ -1,10 +1,13 @@
 import operator
 from collections.abc import AsyncGenerator
 from functools import reduce
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from django.db import connection, models
 from django.db.models import Q
+
+if TYPE_CHECKING:
+    from wagtail_vector_index.storage.base import DocumentFilter
 
 
 class DocumentQuerySet(models.QuerySet):
@@ -41,6 +44,22 @@ class DocumentQuerySet(models.QuerySet):
         async for doc in self.filter(reduce(operator.or_, q_objs)):
             yield doc
 
+    def for_model_types(self, *model_types: type[models.Model]) -> "DocumentQuerySet":
+        q_objs = [Q(object_keys__icontains=f"{mt._meta.label}:") for mt in model_types]
+        return self.filter(reduce(operator.or_, q_objs))
+
+    async def afor_model_types(
+        self, *model_types: type[models.Model]
+    ) -> AsyncGenerator["Document", None]:
+        q_objs = [Q(object_keys__icontains=f"{mt._meta.label}:") for mt in model_types]
+        async for doc in self.filter(reduce(operator.or_, q_objs)):
+            yield doc
+
+    def apply_filters(self, filters: list["DocumentFilter"]) -> "DocumentQuerySet":
+        for filter in filters:
+            self = filter.apply(self)
+        return self
+
     @classmethod
     def as_manager(cls) -> "DocumentManager":
         return cast(DocumentManager, super().as_manager())
@@ -55,6 +74,14 @@ class DocumentManager(models.Manager["Document"]):
     def afor_key(self, object_key: str) -> AsyncGenerator["Document", None]: ...
 
     def afor_keys(self, object_keys: list[str]) -> AsyncGenerator["Document", None]: ...
+
+    def for_model_types(self, *model_types: type[models.Model]) -> DocumentQuerySet: ...
+
+    def afor_model_types(
+        self, *model_types: type[models.Model]
+    ) -> AsyncGenerator["Document", None]: ...
+
+    def apply_filters(self, filters: list["DocumentFilter"]) -> DocumentQuerySet: ...
 
 
 class Document(models.Model):

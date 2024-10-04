@@ -654,7 +654,7 @@ def build_vector_index_base_for_storage_provider(
 ):
     """Build a VectorIndex base class for a given storage provider alias.
 
-    e.g. If WAGATAIL_VECTOR_INDEX_STORAGE_PROVIDERS includes a provider with alias "default" referencing the PgvectorStorageProvider,
+    e.g. If WAGTAIL_VECTOR_INDEX_STORAGE_PROVIDERS includes a provider with alias "default" referencing the PgvectorStorageProvider,
     this function will return a class that is a subclass of PgvectorIndexMixin and VectorIndex.
     """
 

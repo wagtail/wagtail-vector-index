@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Generic, Protocol, Type, TypeVa
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+from django.db.models import QuerySet
 
 from wagtail_vector_index.ai import get_chat_backend, get_embedding_backend
 from wagtail_vector_index.ai_utils.backends.base import BaseEmbeddingBackend
@@ -14,6 +15,7 @@ from wagtail_vector_index.storage import (
 )
 
 if TYPE_CHECKING:
+    from wagtail_vector_index.storage.filters import DocumentFilter
     from wagtail_vector_index.storage.models import Document
 
 StorageProviderClass = TypeVar("StorageProviderClass")
@@ -35,6 +37,7 @@ class StorageVectorIndexMixinProtocol(Protocol[StorageProviderClass]):
     """Protocol which defines the minimum requirements for a VectorIndex to be used with a StorageProvider mixin."""
 
     storage_provider: StorageProviderClass
+    _filters: list["DocumentFilter"]
 
     def rebuild_index(self) -> None: ...
 
@@ -206,6 +209,9 @@ class VectorIndex(Generic[ConfigClass]):
     # The alias of the storage provider specified in WAGTAIL_VECTOR_INDEX_STORAGE_PROVIDERS
     storage_provider_alias: ClassVar[str] = "default"
 
+    # Filters applied to the get_similar_documents method. Added to the index by the filter method.
+    _filters: list["DocumentFilter"] = []
+
     def get_embedding_backend(self) -> BaseEmbeddingBackend:
         return get_embedding_backend(self.embedding_backend_alias)
 
@@ -219,6 +225,14 @@ class VectorIndex(Generic[ConfigClass]):
         raise NotImplementedError
 
     # Public API
+
+    def filter(self, *filters: "DocumentFilter") -> "VectorIndex":
+        """
+        Returns a new VectorIndex with the given filters applied.
+        """
+        filtered_index = copy.copy(self)
+        filtered_index._filters = list(filters)
+        return filtered_index
 
     def query(
         self,
@@ -420,7 +434,7 @@ class VectorIndex(Generic[ConfigClass]):
         *,
         limit: int = 5,
         similarity_threshold: float = 0.0,
-    ) -> Generator["Document", None, None]:
+    ) -> QuerySet["Document"]:
         raise NotImplementedError
 
     def aget_similar_documents(
