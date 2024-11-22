@@ -623,6 +623,15 @@ class EmbeddableFieldsVectorIndexMixin(MixinBase):
             )
         return all_documents
 
+    async def aget_documents(self) -> AsyncGenerator[Document, None]:
+        querysets = self._get_querysets()
+
+        for queryset in querysets:
+            async for document in self.get_converter().abulk_to_documents(
+                queryset, embedding_backend=self.get_embedding_backend()
+            ):
+                yield document
+
 
 class PageEmbeddableFieldsVectorIndexMixin(EmbeddableFieldsVectorIndexMixin):
     """A mixin for VectorIndex for use with Wagtail pages that automatically

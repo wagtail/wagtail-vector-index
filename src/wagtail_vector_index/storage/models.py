@@ -33,6 +33,8 @@ class DocumentQuerySet(models.QuerySet):
         if not object_keys:
             return self.none()
         q_objs = [Q(object_keys__icontains=object_key) for object_key in object_keys]
+        if not q_objs:
+            return self
         return self.filter(reduce(operator.or_, q_objs))
 
     async def afor_keys(
@@ -41,7 +43,11 @@ class DocumentQuerySet(models.QuerySet):
         if not object_keys:
             return
         q_objs = [Q(object_keys__icontains=object_key) for object_key in object_keys]
-        async for doc in self.filter(reduce(operator.or_, q_objs)):
+        if q_objs:
+            filtered_docs = self.filter(reduce(operator.or_, q_objs))
+        else:
+            filtered_docs = self
+        async for doc in filtered_docs:
             yield doc
 
     def for_model_types(self, *model_types: type[models.Model]) -> "DocumentQuerySet":
