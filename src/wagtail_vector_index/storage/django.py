@@ -10,6 +10,7 @@ from itertools import chain, islice
 from typing import (
     TYPE_CHECKING,
     ClassVar,
+    Iterator,
     Optional,
     Type,
     TypeAlias,
@@ -297,14 +298,15 @@ class ModelToDocumentOperator(ToDocumentOperator[models.Model]):
         )
 
     # Synchronous document generation methods
-    def _create_new_documents(
+    @transaction.atomic
+    def replace_documents(
         self,
         object: models.Model,
         chunks: list[str],
-        embedding_backend: BaseEmbeddingBackend,
-    ) -> list[Document]:
+        embedding_vectors: Iterator[list[float]],
+    ):
+        """Replace the current Documents for an object with new ones within a transaction"""
         Document.objects.for_key(ModelKey(object)).delete()
-        embedding_vectors = embedding_backend.embed(chunks)
         return [
             Document.objects.create(
                 object_keys=[str(key) for key in self._keys_for_instance(object)],
@@ -314,22 +316,28 @@ class ModelToDocumentOperator(ToDocumentOperator[models.Model]):
             for chunk, embedding in zip(chunks, embedding_vectors, strict=False)
         ]
 
-    # Asynchronous document generation methods
+    def _create_new_documents(
+        self,
+        object: models.Model,
+        chunks: list[str],
+        embedding_backend: BaseEmbeddingBackend,
+    ) -> list[Document]:
+        embedding_vectors = embedding_backend.embed(chunks)
+        return self.replace_documents(object, chunks, embedding_vectors)
 
+    # Asynchronous document generation methods
     async def _acreate_new_documents(
         self,
         object: models.Model,
         chunks: list[str],
         embedding_backend: BaseEmbeddingBackend,
     ) -> AsyncGenerator[Document, None]:
-        await Document.objects.for_key(ModelKey(object)).adelete()
         embedding_vectors = embedding_backend.embed(chunks)
-        for chunk, embedding in zip(chunks, embedding_vectors, strict=False):
-            yield await Document.objects.acreate(
-                object_keys=[str(key) for key in self._keys_for_instance(object)],
-                vector=embedding,
-                content=chunk,
-            )
+        documents = await sync_to_async(self.replace_documents)(
+            object, chunks, embedding_vectors
+        )
+        for document in documents:
+            yield document
 
     # Bulk document generation methods
     @transaction.atomic
