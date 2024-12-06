@@ -623,6 +623,15 @@ class EmbeddableFieldsVectorIndexMixin(MixinBase):
             )
         return all_documents
 
+    async def aget_documents(self) -> AsyncGenerator[Document, None]:
+        querysets = self._get_querysets()
+
+        for queryset in querysets:
+            async for document in self.get_converter().ato_documents(
+                queryset, embedding_backend=self.get_embedding_backend()
+            ):
+                yield document
+
 
 class PageEmbeddableFieldsVectorIndexMixin(EmbeddableFieldsVectorIndexMixin):
     """A mixin for VectorIndex for use with Wagtail pages that automatically
@@ -654,7 +663,7 @@ def build_vector_index_base_for_storage_provider(
 ):
     """Build a VectorIndex base class for a given storage provider alias.
 
-    e.g. If WAGATAIL_VECTOR_INDEX_STORAGE_PROVIDERS includes a provider with alias "default" referencing the PgvectorStorageProvider,
+    e.g. If WAGTAIL_VECTOR_INDEX_STORAGE_PROVIDERS includes a provider with alias "default" referencing the PgvectorStorageProvider,
     this function will return a class that is a subclass of PgvectorIndexMixin and VectorIndex.
     """
 

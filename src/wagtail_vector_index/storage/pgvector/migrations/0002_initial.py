@@ -37,7 +37,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="+",
-                        to="wagtail_vector_index.document",
+                        to="wagtail_vector_index.Document",
                     ),
                 ),
             ],

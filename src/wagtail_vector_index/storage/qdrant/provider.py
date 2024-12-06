@@ -1,4 +1,4 @@
-from collections.abc import Generator, Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -7,10 +7,10 @@ from qdrant_client.http import models as qdrant_models
 from qdrant_client.models import Distance
 
 from wagtail_vector_index.storage.base import (
-    Document,
     StorageProvider,
     StorageVectorIndexMixinProtocol,
 )
+from wagtail_vector_index.storage.models import Document, DocumentQuerySet
 
 
 @dataclass
@@ -66,7 +66,7 @@ class QdrantIndexMixin(MixinBase):
         *,
         limit: int = 5,
         similarity_threshold: float = 0.0,
-    ) -> Generator[Document, None, None]:
+    ) -> DocumentQuerySet:
         """
         Retrieve similar documents from Qdrant.
 
@@ -98,10 +98,11 @@ class QdrantIndexMixin(MixinBase):
             limit=limit,
             score_threshold=score_threshold,
         )
-        for doc in similar_documents:
-            yield Document(
-                embedding_pk=doc["id"], vector=doc["vector"], metadata=doc["payload"]
-            )
+        similar_object_keys = [
+            doc["payload"]["object_keys"][0] for doc in similar_documents
+        ]
+
+        return Document.objects.for_keys(similar_object_keys)
 
 
 class QdrantStorageProvider(StorageProvider[ProviderConfig, QdrantIndexMixin]):

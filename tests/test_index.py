@@ -11,72 +11,8 @@ from testapp.models import DifferentPage, ExampleModel, ExamplePage
 from wagtail_vector_index.storage import registry
 from wagtail_vector_index.storage.base import VectorIndex
 from wagtail_vector_index.storage.django import EmbeddingField, ModelKey
-from wagtail_vector_index.storage.models import Document
 
 fake = Faker()
-
-
-@pytest.fixture
-def test_objects():
-    return [
-        ExampleModelFactory.create(title="Very similar to test"),
-        ExampleModelFactory.create(title="Somewhat similar to test"),
-        ExampleModelFactory.create(title="Not similar at all"),
-    ]
-
-
-@pytest.fixture
-def document_generator(test_objects, get_vector_for_text):
-    def gen_documents(cls, *args, **kwargs):
-        for obj in test_objects:
-            vector = get_vector_for_text(obj.title)
-            yield Document(
-                object_keys=[ModelKey.from_instance(obj)],
-                metadata={
-                    "title": obj.title,
-                    "object_id": str(obj.pk),
-                },
-                vector=vector,
-            )
-
-    return gen_documents
-
-
-@pytest.fixture
-def async_document_generator(test_objects, get_vector_for_text):
-    async def gen_documents(cls, *args, **kwargs):
-        for obj in test_objects:
-            vector = get_vector_for_text(obj.title)
-            yield Document(
-                object_keys=[ModelKey.from_instance(obj)],
-                metadata={"title": obj.title, "object_id": str(obj.pk)},
-                vector=vector,
-            )
-
-    return gen_documents
-
-
-@pytest.fixture
-def mock_vector_index(
-    mocker, mock_embedding_backend, document_generator, async_document_generator
-):
-    vector_index = ExamplePage.vector_index
-
-    mocker.patch.object(
-        vector_index, "get_embedding_backend", return_value=mock_embedding_backend
-    )
-
-    mocker.patch(
-        "wagtail_vector_index.storage.django.EmbeddableFieldsDocumentConverter.to_documents",
-        side_effect=document_generator,
-    )
-
-    mocker.patch(
-        "wagtail_vector_index.storage.django.EmbeddableFieldsDocumentConverter.ato_documents",
-        side_effect=async_document_generator,
-    )
-
-    return vector_index
 
 
 class TestRegistry:
