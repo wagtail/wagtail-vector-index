@@ -157,12 +157,12 @@ def mock_vector_index(
     )
 
     mocker.patch(
-        "wagtail_vector_index.storage.django.EmbeddableFieldsDocumentConverter.bulk_to_documents",
+        "wagtail_vector_index.storage.django.EmbeddableFieldsDocumentConverter.to_documents",
         side_effect=document_generator,
     )
 
     mocker.patch(
-        "wagtail_vector_index.storage.django.EmbeddableFieldsDocumentConverter.abulk_to_documents",
+        "wagtail_vector_index.storage.django.EmbeddableFieldsDocumentConverter.ato_documents",
         side_effect=async_document_generator,
     )
 

@@ -627,7 +627,7 @@ class EmbeddableFieldsVectorIndexMixin(MixinBase):
         querysets = self._get_querysets()
 
         for queryset in querysets:
-            async for document in self.get_converter().abulk_to_documents(
+            async for document in self.get_converter().ato_documents(
                 queryset, embedding_backend=self.get_embedding_backend()
             ):
                 yield document
