@@ -1,5 +1,5 @@
 import logging
-from collections.abc import Generator, Iterable, Sequence
+from collections.abc import AsyncGenerator, Generator, Iterable, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -56,6 +56,15 @@ class NumpyIndexMixin(MixinBase):
             similarities, key=lambda pair: pair[0], reverse=True
         )
         for document in [pair[1] for pair in sorted_similarities][:limit]:
+            yield document
+
+    async def aget_similar_documents(
+        self, query_vector, *, limit: int = 5, similarity_threshold: float = 0.0
+    ) -> AsyncGenerator["Document", None]:
+        documents = self.get_similar_documents(
+            query_vector, limit=limit, similarity_threshold=similarity_threshold
+        )
+        for document in documents:
             yield document
 
 

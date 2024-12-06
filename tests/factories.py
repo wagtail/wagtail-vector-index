@@ -1,5 +1,6 @@
 import factory
 import wagtail_factories
+from async_factory import AsyncFactory
 from faker import Faker
 from testapp.models import DifferentPage, ExampleModel, ExamplePage
 from wagtail_vector_index.storage.models import Document
@@ -8,6 +9,14 @@ fake = Faker()
 
 
 class ExampleModelFactory(factory.django.DjangoModelFactory):
+    title = factory.Faker("sentence")
+    body = factory.LazyFunction(lambda: "\n".join(fake.paragraphs()))
+
+    class Meta:
+        model = ExampleModel
+
+
+class AsyncExampleModelFactory(AsyncFactory):
     title = factory.Faker("sentence")
     body = factory.LazyFunction(lambda: "\n".join(fake.paragraphs()))
 
