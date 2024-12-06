@@ -1,5 +1,6 @@
 import factory
 import pytest
+from asgiref.sync import sync_to_async
 from factories import (
     AsyncExampleModelFactory,
     DifferentPageFactory,
@@ -15,8 +16,11 @@ from wagtail_vector_index.storage.django import (
     EmbeddableFieldsObjectChunkerOperator,
     EmbeddingField,
     ModelFromDocumentOperator,
+    ModelKey,
     ModelLabel,
     ModelToDocumentOperator,
+    PreparedObject,
+    PreparedObjectCollection,
 )
 from wagtail_vector_index.storage.models import Document
 
@@ -185,25 +189,6 @@ class TestFromDocument:
 
 
 class TestToDocument:
-    def test_existing_documents_match(self):
-        text_contents = ["This is a test", "Another test", "More testing content"]
-        documents = [
-            DocumentFactory.build(content=content) for content in text_contents
-        ]
-        operator = ModelToDocumentOperator(EmbeddableFieldsObjectChunkerOperator)
-        assert operator._existing_documents_match(documents, text_contents)
-
-    @pytest.mark.django_db
-    def test_keys_for_instance(self):
-        instance = ExamplePageFactory.create(
-            title="Important Title", body=fake.text(max_nb_chars=200)
-        )
-        operator = ModelToDocumentOperator(EmbeddableFieldsObjectChunkerOperator)
-        keys = operator._keys_for_instance(instance)
-        assert len(keys) == 2
-        assert keys[0] == f"testapp.ExamplePage:{instance.pk}"
-        assert keys[1] == f"wagtailcore.Page:{instance.pk}"
-
     @pytest.mark.django_db
     def test_generate_documents_returns_documents(self):
         instance = ExamplePageFactory.create(
@@ -212,7 +197,7 @@ class TestToDocument:
         operator = ModelToDocumentOperator(EmbeddableFieldsObjectChunkerOperator)
         documents = list(
             operator.to_documents(
-                instance, embedding_backend=get_embedding_backend("default")
+                [instance], embedding_backend=get_embedding_backend("default")
             )
         )
         assert len(documents) == 1
@@ -223,7 +208,7 @@ class TestToDocument:
         instances = ExamplePageFactory.create_batch(3)
         operator = ModelToDocumentOperator(EmbeddableFieldsObjectChunkerOperator)
         documents = list(
-            operator.bulk_to_documents(
+            operator.to_documents(
                 instances, embedding_backend=get_embedding_backend("default")
             )
         )
@@ -239,7 +224,7 @@ class TestToDocument:
         different_pages = DifferentPageFactory.create_batch(3)
         operator = ModelToDocumentOperator(EmbeddableFieldsObjectChunkerOperator)
         documents = list(
-            operator.bulk_to_documents(
+            operator.to_documents(
                 example_pages + different_pages,
                 embedding_backend=get_embedding_backend("default"),
             )
@@ -253,18 +238,18 @@ class TestToDocument:
         )
 
     @pytest.mark.django_db
-    def test_bulk_to_documents_batches_objects(self, mocker):
+    def test_to_documents_batches_objects(self, mocker):
         instances = ExamplePageFactory.create_batch(10)
         operator = ModelToDocumentOperator(EmbeddableFieldsObjectChunkerOperator)
-        bulk_generate_mock = mocker.patch.object(operator, "bulk_generate_documents")
+        to_documents_batch_mock = mocker.patch.object(operator, "_to_documents_batch")
         list(
-            operator.bulk_to_documents(
+            operator.to_documents(
                 instances,
                 embedding_backend=get_embedding_backend("default"),
                 batch_size=2,
             )
         )
-        assert bulk_generate_mock.call_count == 5
+        assert to_documents_batch_mock.call_count == 5
 
 
 class TestConverter:
@@ -277,7 +262,7 @@ class TestConverter:
             converter = EmbeddableFieldsDocumentConverter()
             document = next(
                 converter.to_documents(
-                    instance, embedding_backend=get_embedding_backend("default")
+                    [instance], embedding_backend=get_embedding_backend("default")
                 )
             )
             recovered_instance = converter.from_document(document)
@@ -293,7 +278,7 @@ def test_convert_single_document_to_object():
     )
     documents = list(
         converter.to_documents(
-            instance, embedding_backend=get_embedding_backend("default")
+            [instance], embedding_backend=get_embedding_backend("default")
         )
     )
     recovered_instance = converter.from_document(documents[0])
@@ -309,7 +294,7 @@ def test_convert_multiple_documents_to_objects():
     different_pages = DifferentPageFactory.create_batch(5)
     all_objects = list(example_objects + example_pages + different_pages)
     documents = list(
-        converter.bulk_to_documents(
+        converter.to_documents(
             all_objects, embedding_backend=get_embedding_backend("default")
         )
     )
@@ -319,36 +304,163 @@ def test_convert_multiple_documents_to_objects():
 
 class TestToDocumentOperatorAsync:
     @pytest.mark.django_db(transaction=True)
-    async def test_ato_documents(self, mock_embedding_backend):
+    async def test_ato_documents_batch(self, mock_embedding_backend):
         instance = await AsyncExampleModelFactory.create(
             title="Important Title", body=fake.text(max_nb_chars=200)
         )
         operator = ModelToDocumentOperator(EmbeddableFieldsObjectChunkerOperator)
-        documents = [
-            doc
-            async for doc in operator.ato_documents(
-                instance, embedding_backend=mock_embedding_backend
-            )
-        ]
+
+        documents = await operator._ato_documents_batch(
+            [instance], embedding_backend=mock_embedding_backend
+        )
 
         assert len(documents) > 0
         assert all(isinstance(doc, Document) for doc in documents)
         assert all(instance.title in doc.content for doc in documents)
 
     @pytest.mark.django_db(transaction=True)
-    async def test_abulk_to_documents(self, mock_embedding_backend):
-        instances = await AsyncExampleModelFactory.create_batch(3)
+    async def test_aupdate_object_collection_with_new_documents(
+        self, mock_embedding_backend
+    ):
+        instance = await AsyncExampleModelFactory.create()
+        collection = await sync_to_async(PreparedObjectCollection.prepare_objects)(
+            objects=[instance],
+            chunker_operator=EmbeddableFieldsObjectChunkerOperator(),
+            embedding_backend=mock_embedding_backend,
+        )
+
         operator = ModelToDocumentOperator(EmbeddableFieldsObjectChunkerOperator)
+        await operator._aupdate_object_collection_with_new_documents(
+            collection, mock_embedding_backend
+        )
 
-        documents = [
-            doc
-            async for doc in operator.abulk_to_documents(
-                instances, embedding_backend=mock_embedding_backend
+        assert any(obj.new_documents for obj in collection)
+        assert all(
+            isinstance(doc, Document) for obj in collection for doc in obj.new_documents
+        )
+
+
+class TestPreparedObject:
+    @pytest.mark.django_db
+    def test_needs_updating_when_no_existing_documents(self):
+        instance = ExamplePageFactory.build()
+        prepared_object = PreparedObject(
+            key=ModelKey.from_instance(instance),
+            object=instance,
+            chunks=["chunk1", "chunk2"],
+        )
+        assert prepared_object.needs_updating is True
+
+    @pytest.mark.django_db
+    def test_needs_updating_when_chunks_match(self):
+        instance = ExamplePageFactory.build()
+        prepared_object = PreparedObject(
+            key=ModelKey.from_instance(instance),
+            object=instance,
+            chunks=["chunk1", "chunk2"],
+            existing_documents=[
+                DocumentFactory.build(content="chunk1"),
+                DocumentFactory.build(content="chunk2"),
+            ],
+        )
+        assert prepared_object.needs_updating is False
+
+    @pytest.mark.django_db
+    def test_needs_updating_when_chunks_differ(self):
+        instance = ExamplePageFactory.build()
+        prepared_object = PreparedObject(
+            key=ModelKey.from_instance(instance),
+            object=instance,
+            chunks=["chunk1", "chunk2"],
+            existing_documents=[
+                DocumentFactory.build(content="chunk1"),
+                DocumentFactory.build(content="different chunk"),
+            ],
+        )
+        assert prepared_object.needs_updating is True
+
+    @pytest.mark.django_db
+    def test_documents_returns_new_documents_when_present(self):
+        instance = ExamplePageFactory.build()
+        new_docs = [DocumentFactory.build(), DocumentFactory.build()]
+        existing_docs = [DocumentFactory.build(), DocumentFactory.build()]
+
+        prepared_object = PreparedObject(
+            key=ModelKey.from_instance(instance),
+            object=instance,
+            chunks=["chunk1"],
+            new_documents=new_docs,
+            existing_documents=existing_docs,
+        )
+        assert prepared_object.documents == new_docs
+
+    @pytest.mark.django_db
+    def test_documents_returns_existing_documents_when_no_new_ones(self):
+        instance = ExamplePageFactory.build()
+        existing_docs = [DocumentFactory.build(), DocumentFactory.build()]
+
+        prepared_object = PreparedObject(
+            key=ModelKey.from_instance(instance),
+            object=instance,
+            chunks=["chunk1"],
+            existing_documents=existing_docs,
+        )
+        assert prepared_object.documents == existing_docs
+
+
+class TestPreparedObjectCollection:
+    @pytest.mark.django_db
+    def test_prepare_objects(self, patch_embedding_fields):
+        with patch_embedding_fields(ExamplePage, [EmbeddingField("body")]):
+            instances = ExamplePageFactory.create_batch(3)
+            chunker = EmbeddableFieldsObjectChunkerOperator()
+
+            collection = PreparedObjectCollection.prepare_objects(
+                objects=instances,
+                chunker_operator=chunker,
+                embedding_backend=get_embedding_backend("default"),
             )
-        ]
 
-        assert len(documents) > 0
-        assert all(isinstance(doc, Document) for doc in documents)
-        assert any(instances[0].title in doc.content for doc in documents)
-        assert any(instances[1].title in doc.content for doc in documents)
-        assert any(instances[2].title in doc.content for doc in documents)
+            assert len(collection.objects) == 3
+            assert all(isinstance(obj, PreparedObject) for obj in collection)
+            assert all(obj.chunks for obj in collection)
+
+    @pytest.mark.django_db
+    def test_get_chunk_mapping(self):
+        instances = ExamplePageFactory.build_batch(2)
+        prepared_objects = [
+            PreparedObject(
+                key=ModelKey.from_instance(instance),
+                object=instance,
+                chunks=["chunk1", "chunk2"],
+            )
+            for instance in instances
+        ]
+        collection = PreparedObjectCollection(objects=prepared_objects)
+
+        chunk_mapping = collection.get_chunk_mapping()
+        assert len(chunk_mapping) == 4  # 2 instances * 2 chunks each
+        assert all(isinstance(key, ModelKey) for key in chunk_mapping)
+
+    @pytest.mark.django_db
+    def test_prepare_new_documents(self):
+        instances = ExamplePageFactory.create_batch(2)
+        prepared_objects = [
+            PreparedObject(
+                key=ModelKey.from_instance(instance),
+                object=instance,
+                chunks=["chunk1", "chunk2"],
+            )
+            for instance in instances
+        ]
+        collection = PreparedObjectCollection(objects=prepared_objects)
+
+        # Mock embedding vectors
+        embedding_vectors = [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]]
+        collection.prepare_new_documents(embedding_vectors)
+
+        assert all(len(obj.new_documents) == 2 for obj in collection)
+        assert all(
+            all(isinstance(doc, Document) for doc in obj.new_documents)
+            for obj in collection
+        )

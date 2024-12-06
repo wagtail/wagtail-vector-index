@@ -103,25 +103,19 @@ class ToDocumentOperator(Protocol[FromObjectType]):
     def __init__(self, object_chunker_operator_class: Type[ObjectChunkerOperator]): ...
 
     def to_documents(
-        self, object: FromObjectType, *, embedding_backend: BaseEmbeddingBackend
+        self,
+        objects: Iterable[FromObjectType],
+        *,
+        embedding_backend: BaseEmbeddingBackend,
+        batch_size: int = 100,
     ) -> Generator["Document", None, None]: ...
 
     async def ato_documents(
-        self, object: FromObjectType, *, embedding_backend: BaseEmbeddingBackend
-    ) -> AsyncGenerator["Document", None]: ...
-
-    def bulk_to_documents(
         self,
         objects: Iterable[FromObjectType],
         *,
         embedding_backend: BaseEmbeddingBackend,
-    ) -> Generator["Document", None, None]: ...
-
-    async def abulk_to_documents(
-        self,
-        objects: Iterable[FromObjectType],
-        *,
-        embedding_backend: BaseEmbeddingBackend,
+        batch_size: int = 100,
     ) -> AsyncGenerator["Document", None]: ...
 
 
@@ -147,17 +141,25 @@ class DocumentConverter(ABC):
         return self.from_document_operator_class()
 
     def to_documents(
-        self, object: object, *, embedding_backend: BaseEmbeddingBackend
+        self,
+        objects: Iterable[object],
+        *,
+        embedding_backend: BaseEmbeddingBackend,
+        batch_size: int = 100,
     ) -> Generator["Document", None, None]:
         return self.to_document_operator.to_documents(
-            object, embedding_backend=embedding_backend
+            objects, embedding_backend=embedding_backend, batch_size=batch_size
         )
 
     def ato_documents(
-        self, object: object, *, embedding_backend: BaseEmbeddingBackend
+        self,
+        objects: Iterable[object],
+        *,
+        embedding_backend: BaseEmbeddingBackend,
+        batch_size: int = 100,
     ) -> AsyncGenerator["Document", None]:
         return self.to_document_operator.ato_documents(
-            object, embedding_backend=embedding_backend
+            objects, embedding_backend=embedding_backend, batch_size=batch_size
         )
 
     def from_document(self, document: "Document") -> object:
@@ -165,23 +167,6 @@ class DocumentConverter(ABC):
 
     def afrom_document(self, document: "Document") -> object:
         return self.from_document_operator.afrom_document(document)
-
-    def bulk_to_documents(
-        self, objects: Iterable[object], *, embedding_backend: BaseEmbeddingBackend
-    ) -> Generator["Document", None, None]:
-        return self.to_document_operator.bulk_to_documents(
-            objects, embedding_backend=embedding_backend
-        )
-
-    def abulk_to_documents(
-        self,
-        objects: Iterable[object],
-        *,
-        embedding_backend: BaseEmbeddingBackend,
-    ) -> AsyncGenerator["Document", None]:
-        return self.to_document_operator.abulk_to_documents(
-            objects, embedding_backend=embedding_backend
-        )
 
     def bulk_from_documents(
         self, documents: Sequence["Document"]
@@ -330,7 +315,7 @@ class VectorIndex(Generic[ConfigClass]):
         """Find similar objects to the given object"""
         converter = self.get_converter()
         object_documents: Generator[Document, None, None] = converter.to_documents(
-            object, embedding_backend=self.get_embedding_backend()
+            [object], embedding_backend=self.get_embedding_backend()
         )
         similar_documents = []
         for document in object_documents:
@@ -356,7 +341,7 @@ class VectorIndex(Generic[ConfigClass]):
         converter = self.get_converter()
         similar_documents = []
         async for document in converter.ato_documents(
-            object, embedding_backend=self.get_embedding_backend()
+            [object], embedding_backend=self.get_embedding_backend()
         ):
             similar_docs = self.aget_similar_documents(
                 document.vector, limit=limit, similarity_threshold=similarity_threshold

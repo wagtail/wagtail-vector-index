@@ -27,12 +27,16 @@ class DocumentQuerySet(models.QuerySet):
                 yield doc
 
     def for_keys(self, object_keys: list[str]):
+        if not object_keys:
+            return self.none()
         q_objs = [Q(object_keys__icontains=object_key) for object_key in object_keys]
         return self.filter(reduce(operator.or_, q_objs))
 
     async def afor_keys(
         self, object_keys: list[str]
     ) -> AsyncGenerator["Document", None]:
+        if not object_keys:
+            return
         q_objs = [Q(object_keys__icontains=object_key) for object_key in object_keys]
         async for doc in self.filter(reduce(operator.or_, q_objs)):
             yield doc
