@@ -218,7 +218,8 @@ class ModelFromDocumentOperator(FromDocumentOperator[models.Model]):
             if key in seen_keys:
                 continue
             seen_keys.add(key)
-            yield objects_by_key[key]
+            if key in objects_by_key:
+                yield objects_by_key[key]
 
     @staticmethod
     def _get_models_by_key(keys_by_model_label: dict) -> dict[ModelKey, models.Model]:
