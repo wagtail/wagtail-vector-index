@@ -1,13 +1,14 @@
 import logging
 from collections.abc import (
     AsyncGenerator,
-    Generator,
     Iterable,
     MutableSequence,
     Sequence,
 )
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar, cast
+
+from django.db.models import F
 
 from wagtail_vector_index.storage.base import (
     StorageProvider,
@@ -17,7 +18,7 @@ from wagtail_vector_index.storage.base import (
 from .types import DistanceMethod
 
 if TYPE_CHECKING:
-    from wagtail_vector_index.storage.models import Document
+    from wagtail_vector_index.storage.models import Document, DocumentQuerySet
 
     from .models import PgvectorEmbedding, PgvectorEmbeddingQuerySet
 
@@ -33,7 +34,14 @@ __all__ = [
 ]
 
 
-def _embedding_model():
+def _document_model() -> type["Document"]:
+    """Lazy load the model to prevent Django trying to import it before the app registry is ready."""
+    from wagtail_vector_index.storage.models import Document
+
+    return Document
+
+
+def _embedding_model() -> type["PgvectorEmbedding"]:
     """Lazy load the model to prevent Django trying to import it before the app registry is ready."""
     from .models import PgvectorEmbedding
 
@@ -81,20 +89,44 @@ class PgvectorIndexMixin(MixinBase):
         self._get_queryset().delete()
 
     def get_similar_documents(
-        self, query_vector, *, limit: int = 5, similarity_threshold: float = 0.0
-    ) -> Generator["Document", None, None]:
-        for pgvector_embedding in self._get_similar_documents_queryset(
-            query_vector, limit=limit, similarity_threshold=similarity_threshold
-        ).iterator():
-            yield pgvector_embedding.document
+        self,
+        query_vector,
+        *,
+        limit: int = 5,
+        similarity_threshold: float = 0.0,
+    ) -> "DocumentQuerySet":
+        similar_embeddings = self._get_similar_documents_queryset(
+            query_vector,
+            limit=limit,
+            similarity_threshold=similarity_threshold,
+        )
+        similar_object_keys = list(
+            similar_embeddings.values_list("document__object_keys", flat=True)
+        )
+        similar_object_keys = [
+            keys[0] if keys else None for keys in similar_object_keys
+        ]
+        return _document_model().objects.for_keys(similar_object_keys)
 
     async def aget_similar_documents(
-        self, query_vector, *, limit: int = 5, similarity_threshold: float = 0.0
+        self,
+        query_vector,
+        *,
+        limit: int = 5,
+        similarity_threshold: float = 0.0,
     ) -> AsyncGenerator["Document", None]:
-        async for pgvector_embedding in self._get_similar_documents_queryset(
-            query_vector, limit=limit, similarity_threshold=similarity_threshold
-        ):
-            yield pgvector_embedding.document
+        similar_embeddings = self._get_similar_documents_queryset(
+            query_vector,
+            limit=limit,
+            similarity_threshold=similarity_threshold,
+        )
+        similar_object_keys = list(
+            similar_embeddings.values_list("document__object_keys", flat=True)
+        )
+        similar_object_keys = [
+            keys[0] if keys else None for keys in similar_object_keys
+        ]
+        return _document_model().objects.afor_keys(similar_object_keys)
 
     def _get_queryset(self) -> "PgvectorEmbeddingQuerySet":
         # objects is technically a Manager instance but we want to use the custom
@@ -104,17 +136,24 @@ class PgvectorIndexMixin(MixinBase):
         )
 
     def _get_similar_documents_queryset(
-        self, query_vector: Sequence[float], *, limit: int, similarity_threshold: float
+        self,
+        query_vector: Sequence[float],
+        *,
+        limit: int,
+        similarity_threshold: float,
     ) -> "PgvectorEmbeddingQuerySet":
+        documents = _document_model().objects.all().apply_filters(self._filters)
+
         queryset = (
             self._get_queryset()
-            .select_related("document")
             .filter(embedding_output_dimensions=len(query_vector))
+            .filter(document__in=documents)
             .order_by_distance(
                 query_vector,
                 distance_method=self.distance_method,
                 fetch_distance=True,
             )
+            .annotate(object_keys=F("document__object_keys"))
         )
         if similarity_threshold > 0.0:
             # Convert similarity threshold to distance threshold
