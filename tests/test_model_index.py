@@ -42,8 +42,8 @@ class TestIndexOperationsFromRegistry(IndexOperations):
         return registry["ExamplePageIndex"]
 
 
-def test_rebuilding_model_index_creates_embeddings():
-    ExamplePageFactory.create_batch(10)
+def test_rebuilding_model_index_creates_documents():
+    ExamplePageFactory.create_batch(10, body=fake.text(max_nb_chars=10))
     index = ExamplePage.vector_index
     index.rebuild_index()
     assert Document.objects.count() == 10

@@ -4,19 +4,21 @@ from collections.abc import (
     AsyncGenerator,
     Generator,
     Iterable,
-    MutableSequence,
     Sequence,
 )
+from dataclasses import dataclass, field
 from itertools import chain, islice
 from typing import (
     TYPE_CHECKING,
     ClassVar,
+    Iterator,
     Optional,
     Type,
     TypeAlias,
     cast,
 )
 
+from asgiref.sync import sync_to_async
 from django.apps import apps
 from django.core import checks
 from django.core.exceptions import FieldDoesNotExist
@@ -143,12 +145,12 @@ class EmbeddableFieldsMixin(models.Model):
     @classmethod
     def _check_embedding_fields(cls, **kwargs):
         errors = []
-        for field in cls._get_embedding_fields():
+        for field_ in cls._get_embedding_fields():
             message = "{model}.embedding_fields contains non-existent field '{name}'"
-            if not cls._has_field(field.field_name):
+            if not cls._has_field(field_.field_name):
                 errors.append(
                     checks.Warning(
-                        message.format(model=cls.__name__, name=field.field_name),
+                        message.format(model=cls.__name__, name=field_.field_name),
                         obj=cls,
                         id="wagtailai.WA001",
                     )
@@ -174,7 +176,9 @@ class ModelFromDocumentOperator(FromDocumentOperator[models.Model]):
         keys_by_model_label = self._get_keys_by_model_label(documents)
         objects_by_key = self._get_models_by_key(keys_by_model_label)
 
-        yield from self._get_deduplicated_objects_generator(documents, objects_by_key)
+        yield from self._get_deduplicated_objects_generator(
+            documents=documents, objects_by_key=objects_by_key
+        )
 
     async def abulk_from_documents(
         self, documents: Sequence[Document]
@@ -185,7 +189,7 @@ class ModelFromDocumentOperator(FromDocumentOperator[models.Model]):
 
         # N.B. `yield from`  cannot be used in async functions, so we have to use a loop
         for object_from_document in self._get_deduplicated_objects_generator(
-            documents, objects_by_key
+            documents=documents, objects_by_key=objects_by_key
         ):
             yield object_from_document
 
@@ -210,7 +214,7 @@ class ModelFromDocumentOperator(FromDocumentOperator[models.Model]):
 
     @staticmethod
     def _get_deduplicated_objects_generator(
-        documents: Sequence[Document], objects_by_key: dict[ModelKey, models.Model]
+        *, documents: Sequence[Document], objects_by_key: dict[ModelKey, models.Model]
     ) -> Generator[models.Model, None, None]:
         seen_keys = set()  # de-dupe as we go
         for doc in documents:
@@ -258,23 +262,100 @@ class ModelFromDocumentOperator(FromDocumentOperator[models.Model]):
         return objects_by_key
 
 
-class ModelToDocumentOperator(ToDocumentOperator[models.Model]):
-    """A class that can generate Documents from model instances"""
+@dataclass
+class PreparedObject:
+    """A class that represents a model instance and its chunks - used to persist object metadata and allow batch operations"""
 
-    def __init__(self, object_chunker_operator_class: Type[ObjectChunkerOperator]):
-        self.object_chunker_operator = object_chunker_operator_class()
+    key: ModelKey
+    object: models.Model
+    chunks: list[str]
+    embedding_vectors: list[list[float]] | None = None
+    existing_documents: list[Document] | None = None
+    new_documents: list[Document] = field(default_factory=list)
+
+    @property
+    def documents(self) -> list[Document]:
+        return self.new_documents or self.existing_documents or []
+
+    @property
+    def needs_updating(self) -> bool:
+        """Determine whether the embeddings need to be updated for this object"""
+        if not self.existing_documents:
+            return True
+
+        document_content = {document.content for document in self.existing_documents}
+
+        return set(self.chunks) != document_content
+
+
+@dataclass
+class PreparedObjectCollection:
+    """A collection of PreparedObjects that handles bulk operations like chunk mapping and embedding"""
+
+    objects: list[PreparedObject]
+
+    def __iter__(self) -> Iterator[PreparedObject]:
+        """Make the collection iterable, yielding PreparedObjects"""
+        return iter(self.objects)
+
+    @classmethod
+    def prepare_objects(
+        cls,
+        objects: Iterable[models.Model],
+        *,
+        chunker_operator: ObjectChunkerOperator,
+        embedding_backend: BaseEmbeddingBackend,
+    ) -> "PreparedObjectCollection":
+        """Create a PreparedObjectCollection from a list of model instances"""
+        prepared_objects = []
+        all_keys = []
+
+        for object in objects:
+            key = ModelKey.from_instance(object)
+            chunks = list(
+                chunker_operator.chunk_object(
+                    object, chunk_size=embedding_backend.config.token_limit
+                )
+            )
+            prepared_objects.append(
+                PreparedObject(key=key, object=object, chunks=chunks)
+            )
+            all_keys.append(key)
+
+        existing_documents = Document.objects.for_keys(all_keys)
+        existing_documents_by_key = cls._group_documents_by_object_key(
+            existing_documents
+        )
+
+        for object in prepared_objects:
+            object.existing_documents = existing_documents_by_key[object.key]
+
+        return cls(objects=prepared_objects)
 
     @staticmethod
-    def _existing_documents_match(
-        documents: Iterable[Document], splits: list[str]
-    ) -> bool:
-        """Determine whether the documents passed in match the text content passed in"""
-        if not documents:
-            return False
+    def _group_documents_by_object_key(documents) -> dict[ModelKey, list[Document]]:
+        """Group documents by their object key"""
+        documents_by_object_key = defaultdict(list)
+        for document in documents:
+            documents_by_object_key[document.object_keys[0]].append(document)
+        return documents_by_object_key
 
-        document_content = {document.content for document in documents}
+    @property
+    def objects_by_key(self) -> dict[ModelKey, PreparedObject]:
+        return {obj.key: obj for obj in self.objects}
 
-        return set(splits) == document_content
+    @property
+    def objects_needing_update(self) -> list[PreparedObject]:
+        """Return list of objects that need their embeddings updated"""
+        return [obj for obj in self.objects if obj.needs_updating]
+
+    def get_all_chunks(self) -> list[str]:
+        """Get all chunks from objects needing updates"""
+        return [chunk for obj in self.objects_needing_update for chunk in obj.chunks]
+
+    def get_chunk_mapping(self) -> list[ModelKey]:
+        """Create a mapping of chunk indices to object keys"""
+        return [obj.key for obj in self.objects_needing_update for _ in obj.chunks]
 
     @staticmethod
     def _keys_for_instance(instance: models.Model) -> list[ModelKey]:
@@ -284,122 +365,175 @@ class ModelToDocumentOperator(ToDocumentOperator[models.Model]):
         keys = [ModelKey.from_instance(instance), *keys]
         return keys
 
-    @transaction.atomic
-    def generate_documents(
-        self, object: models.Model, *, embedding_backend: BaseEmbeddingBackend
-    ) -> list[Document]:
-        """Use the AI backend to generate and store Documents for this object"""
-        chunks = list(
-            self.object_chunker_operator.chunk_object(
-                object, chunk_size=embedding_backend.config.token_limit
-            )
+    def prepare_new_documents(self, embedding_vectors: Iterable[list[float]]):
+        """Prepare (but don't save) new documents for objects that need updating with new embeddings"""
+        if not embedding_vectors:
+            return
+
+        chunk_mapping = self.get_chunk_mapping()
+        all_chunks = self.get_all_chunks()
+
+        # Group embeddings by object
+        embeddings_by_key: dict[ModelKey, list[tuple[int, list[float]]]] = defaultdict(
+            list
         )
-        documents = Document.objects.for_key(ModelKey(object))
+        for idx, embedding in enumerate(embedding_vectors):
+            object_key = chunk_mapping[idx]
+            embeddings_by_key[object_key].append((idx, embedding))
 
-        # If the existing embeddings all match on content, we return them
-        # without generating new ones
-        if self._existing_documents_match(documents, chunks):
-            return list(documents)
+        # Create new documents for each object
+        for object_key, embeddings in embeddings_by_key.items():
+            prepared_obj = self.objects_by_key[object_key]
+            for idx, embedding in embeddings:
+                chunk = all_chunks[idx]
+                all_keys = self._keys_for_instance(prepared_obj.object)
+                prepared_obj.new_documents.append(
+                    Document(
+                        object_keys=all_keys,
+                        vector=embedding,
+                        content=chunk,
+                    )
+                )
 
-        # Otherwise we delete all the existing Documents and get new ones
-        documents.delete()
+        print([obj.new_documents for obj in self.objects])
 
-        embedding_vectors = embedding_backend.embed(chunks)
-        generated_documents: MutableSequence[Document] = []
-        for idx, returned_embedding in enumerate(embedding_vectors):
-            chunk = chunks[idx]
-            document = Document.objects.create(
-                object_keys=[str(key) for key in self._keys_for_instance(object)],
-                vector=returned_embedding,
-                content=chunk,
-            )
-            generated_documents.append(document)
 
-        return generated_documents
+class ModelToDocumentOperator(ToDocumentOperator[models.Model]):
+    """A class that can generate Documents from model instances"""
+
+    def __init__(self, object_chunker_operator_class: Type[ObjectChunkerOperator]):
+        self.object_chunker_operator = object_chunker_operator_class()
 
     @transaction.atomic
-    def bulk_generate_documents(self, objects, *, embedding_backend):
-        objects_by_key = {ModelKey.from_instance(obj): obj for obj in objects}
-        documents = Document.objects.for_keys(list(objects_by_key.keys()))
+    def update_documents(
+        self,
+        collection: PreparedObjectCollection,
+    ):
+        """Replace the current Documents for all objects that have new documents to save"""
+        replaced_keys = [str(obj.key) for obj in collection if obj.new_documents]
+        if replaced_keys:
+            Document.objects.for_keys(replaced_keys).delete()
+            Document.objects.bulk_create(
+                chain(*[obj.new_documents for obj in collection if obj.new_documents])
+            )
 
-        documents_by_object_key = defaultdict(list)
-        for document in documents:
-            documents_by_object_key[document.object_keys[0]].append(document)
+    def _update_object_collection_with_new_documents(
+        self,
+        collection: PreparedObjectCollection,
+        embedding_backend: BaseEmbeddingBackend,
+    ):
+        objects_to_rebuild = collection.objects_needing_update
 
-        objects_to_rebuild = {}
-
-        # Maintain a list of object keys in the order they appear in the chunks
-        # so we can map the embeddings from the backend to the correct object
-        chunk_mapping = []
-
-        # Determine which objects need to be rebuilt
-        for key, object in objects_by_key.items():
-            documents_for_object = documents_by_object_key[key]
-            chunks = list(
-                self.object_chunker_operator.chunk_object(
-                    object, chunk_size=embedding_backend.config.token_limit
+        if not objects_to_rebuild:
+            return list(
+                chain(
+                    *[
+                        obj.existing_documents
+                        for obj in collection
+                        if obj.existing_documents
+                    ]
                 )
             )
 
-            if not self._existing_documents_match(documents_for_object, chunks):
-                objects_to_rebuild[key] = {"object": object, "chunks": chunks}
-                chunk_mapping += [key] * len(chunks)
-
-        if not objects_to_rebuild:
-            return documents
-
-        all_chunks = list(
-            chain(*[obj["chunks"] for obj in objects_to_rebuild.values()])
-        )
-
+        # Get embeddings for all chunks that need updating
+        all_chunks = collection.get_all_chunks()
         embedding_vectors = list(embedding_backend.embed(all_chunks))
-        documents_by_object = defaultdict(list)
 
-        for idx, embedding in enumerate(embedding_vectors):
-            object_key = chunk_mapping[idx]
-            documents_by_object[object_key].append((idx, embedding))
+        # Apply the embeddings to create new documents
+        collection.prepare_new_documents(embedding_vectors)
 
+    # Helper methods for bulk document generation
+    def _delete_existing_documents(self, *, documents_by_object):
         existing_documents = Document.objects.for_keys(list(documents_by_object.keys()))
         existing_documents.delete()
 
-        for object_key, documents in documents_by_object.items():
-            for idx, returned_embedding in documents:
-                all_keys = self._keys_for_instance(objects_by_key[object_key])
-                chunk = all_chunks[idx]
-                Document.objects.create(
-                    object_keys=all_keys,
-                    vector=returned_embedding,
-                    content=chunk,
-                )
+    async def _adelete_existing_documents(self, *, documents_by_object):
+        existing_documents = Document.objects.for_keys(list(documents_by_object.keys()))
+        await existing_documents.adelete()
 
-        # Return every document object, regardless of whether it was rebuilt, retaining
-        # the order they appeared in the original list
-        documents = list(Document.objects.for_keys(list(objects_by_key.keys())))
-        return sorted(
-            documents,
-            key=lambda doc: list(objects_by_key.keys()).index(
-                ModelKey(doc.object_keys[0])
-            ),
+    def _to_documents_batch(
+        self, objects: Iterable[models.Model], embedding_backend: BaseEmbeddingBackend
+    ):
+        collection = PreparedObjectCollection.prepare_objects(
+            objects=objects,
+            chunker_operator=self.object_chunker_operator,
+            embedding_backend=embedding_backend,
         )
+        self._update_object_collection_with_new_documents(collection, embedding_backend)
+        self.update_documents(collection)
+        yield from [doc for obj in collection for doc in obj.documents]
 
+    # Interface methods
     def to_documents(
-        self, object: models.Model, *, embedding_backend: BaseEmbeddingBackend
-    ) -> Generator[Document, None, None]:
-        yield from self.generate_documents(object, embedding_backend=embedding_backend)
-
-    def bulk_to_documents(
         self,
         objects: Iterable[models.Model],
         *,
-        batch_size: int = 100,
         embedding_backend: BaseEmbeddingBackend,
+        batch_size: int = 100,
     ) -> Generator[Document, None, None]:
         batches = list(batched(objects, batch_size))
         for idx, batch in enumerate(batches):
             logger.info(f"Generating documents for batch {idx + 1} of {len(batches)}")
-            yield from self.bulk_generate_documents(
+            for document in self._to_documents_batch(
                 batch, embedding_backend=embedding_backend
+            ):
+                yield document
+
+    async def _ato_documents_batch(
+        self, objects: Iterable[models.Model], embedding_backend: BaseEmbeddingBackend
+    ):
+        collection = await sync_to_async(PreparedObjectCollection.prepare_objects)(
+            objects=objects,
+            chunker_operator=self.object_chunker_operator,
+            embedding_backend=embedding_backend,
+        )
+        await self._aupdate_object_collection_with_new_documents(
+            collection, embedding_backend
+        )
+        # Using sync_to_async to ensure the update can happen in a transaction
+        await sync_to_async(self.update_documents)(collection)
+        return [doc for obj in collection.objects for doc in obj.documents]
+
+    async def _aupdate_object_collection_with_new_documents(
+        self,
+        collection: PreparedObjectCollection,
+        embedding_backend: BaseEmbeddingBackend,
+    ):
+        """Async version of _update_object_collection_with_new_documents"""
+        objects_to_rebuild = collection.objects_needing_update
+
+        if not objects_to_rebuild:
+            return list(
+                chain(
+                    *[
+                        obj.existing_documents
+                        for obj in collection
+                        if obj.existing_documents
+                    ]
+                )
             )
+
+        # Get embeddings for all chunks that need updating
+        all_chunks = collection.get_all_chunks()
+        embedding_vectors = await embedding_backend.aembed(all_chunks)
+
+        # Apply the embeddings to create new documents
+        collection.prepare_new_documents(embedding_vectors)
+
+    async def ato_documents(
+        self,
+        objects: Iterable[models.Model],
+        *,
+        embedding_backend: BaseEmbeddingBackend,
+        batch_size: int = 100,
+    ) -> AsyncGenerator[Document, None]:
+        batches = list(batched(objects, batch_size))
+        for idx, batch in enumerate(batches):
+            logger.info(f"Generating documents for batch {idx + 1} of {len(batches)}")
+            for document in await self._ato_documents_batch(
+                batch, embedding_backend=embedding_backend
+            ):
+                yield document
 
 
 class EmbeddableFieldsObjectChunkerOperator(
@@ -413,15 +547,15 @@ class EmbeddableFieldsObjectChunkerOperator(
         important_content = []
         embedding_fields = object._meta.model._get_embedding_fields()
 
-        for field in embedding_fields:
-            value = field.get_value(object)
+        for field_ in embedding_fields:
+            value = field_.get_value(object)
             if value is None:
                 continue
             if isinstance(value, str):
                 final_value = value
             else:
                 final_value: str = "\n".join((str(v) for v in value))
-            if field.important:
+            if field_.important:
                 important_content.append(final_value)
             else:
                 splittable_content.append(final_value)
@@ -484,7 +618,7 @@ class EmbeddableFieldsVectorIndexMixin(MixinBase):
             # Embedding models are created, even if it is not consumed
             # by the caller
             all_documents += list(
-                self.get_converter().bulk_to_documents(
+                self.get_converter().to_documents(
                     queryset, embedding_backend=self.get_embedding_backend()
                 )
             )
