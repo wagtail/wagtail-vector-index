@@ -8,15 +8,7 @@ from collections.abc import (
 )
 from dataclasses import dataclass, field
 from itertools import chain, islice
-from typing import (
-    TYPE_CHECKING,
-    ClassVar,
-    Iterator,
-    Optional,
-    Type,
-    TypeAlias,
-    cast,
-)
+from typing import ClassVar, Iterator, Optional, Type, TypeAlias, cast
 
 from asgiref.sync import sync_to_async
 from django.apps import apps
@@ -395,8 +387,6 @@ class PreparedObjectCollection:
                     )
                 )
 
-        print([obj.new_documents for obj in self.objects])
-
 
 class ModelToDocumentOperator(ToDocumentOperator[models.Model]):
     """A class that can generate Documents from model instances"""
@@ -589,19 +579,12 @@ class EmbeddableFieldsDocumentConverter(DocumentConverter):
 # VectorIndex mixins which add model-specific behaviour
 # ###########
 
-if TYPE_CHECKING:
-    MixinBase = DocumentRetrievalVectorIndexMixinProtocol
-else:
-    MixinBase = object
 
-
-class EmbeddableFieldsVectorIndexMixin(MixinBase):
+class EmbeddableFieldsVectorIndexMixin:
     """A Mixin for VectorIndex which indexes the results of querysets of EmbeddableFieldsMixin models"""
 
-    querysets: ClassVar[Sequence[models.QuerySet]]
-
-    def _get_querysets(self) -> Sequence[models.QuerySet]:
-        return self.querysets
+    def get_querysets(self) -> Sequence[models.QuerySet]:
+        return []
 
     def get_converter_class(self) -> type[EmbeddableFieldsDocumentConverter]:
         return EmbeddableFieldsDocumentConverter
@@ -610,26 +593,30 @@ class EmbeddableFieldsVectorIndexMixin(MixinBase):
         return self.get_converter_class()()
 
     def get_documents(self) -> Iterable[Document]:
-        querysets = self._get_querysets()
+        querysets = self.get_querysets()
         all_documents = []
 
+        backend = cast(
+            DocumentRetrievalVectorIndexMixinProtocol, self
+        ).get_embedding_backend()
         for queryset in querysets:
             # We need to consume the generator here to ensure that the
             # Embedding models are created, even if it is not consumed
             # by the caller
             all_documents += list(
-                self.get_converter().to_documents(
-                    queryset, embedding_backend=self.get_embedding_backend()
-                )
+                self.get_converter().to_documents(queryset, embedding_backend=backend)
             )
         return all_documents
 
     async def aget_documents(self) -> AsyncGenerator[Document, None]:
-        querysets = self._get_querysets()
+        querysets = self.get_querysets()
 
+        backend = cast(
+            DocumentRetrievalVectorIndexMixinProtocol, self
+        ).get_embedding_backend()
         for queryset in querysets:
             async for document in self.get_converter().ato_documents(
-                queryset, embedding_backend=self.get_embedding_backend()
+                queryset, embedding_backend=backend
             ):
                 yield document
 
@@ -640,8 +627,8 @@ class PageEmbeddableFieldsVectorIndexMixin(EmbeddableFieldsVectorIndexMixin):
 
     querysets: Sequence[PageQuerySet]
 
-    def _get_querysets(self) -> list[PageQuerySet]:
-        qs_list = super()._get_querysets()
+    def get_querysets(self) -> Sequence[PageQuerySet]:
+        qs_list = super().get_querysets()
 
         # Technically a manager instance, not a queryset, but we want to use the custom
         # methods.
@@ -661,7 +648,7 @@ def camel_case(snake_str: str):
 
 def build_vector_index_base_for_storage_provider(
     storage_provider_alias: str = "default",
-):
+) -> type[VectorIndex]:
     """Build a VectorIndex base class for a given storage provider alias.
 
     e.g. If WAGTAIL_VECTOR_INDEX_STORAGE_PROVIDERS includes a provider with alias "default" referencing the PgvectorStorageProvider,
@@ -724,7 +711,7 @@ class GeneratedIndexMixin(models.Model):
                 cls.generated_index_class_name(),
                 class_list,
                 {
-                    "querysets": [cls.objects.all()],
+                    "get_querysets": lambda self: [cls.objects.all()],
                 },
             ),
         )()

@@ -1,7 +1,7 @@
 import pytest
-from factories import ExamplePageFactory
+from factories import BookPageFactory
 from faker import Faker
-from testapp.models import ExamplePage
+from testapp.models import BookPage
 from wagtail_vector_index.storage import registry
 from wagtail_vector_index.storage.models import Document
 
@@ -15,8 +15,8 @@ class IndexOperations:
 
     @pytest.fixture(autouse=True)
     def setup_models(self):
-        ExamplePageFactory.create_batch(10)
-        ExamplePage.vector_index.rebuild_index()
+        BookPageFactory.create_batch(10)
+        BookPage.vector_index.rebuild_index()
 
     def get_index(self):
         raise NotImplementedError("Must be implemented in subclass")
@@ -34,16 +34,16 @@ class IndexOperations:
 
 class TestIndexOperationsFromModel(IndexOperations):
     def get_index(self):
-        return ExamplePage.vector_index
+        return BookPage.vector_index
 
 
 class TestIndexOperationsFromRegistry(IndexOperations):
     def get_index(self):
-        return registry["ExamplePageIndex"]
+        return registry["BookPageIndex"]
 
 
 def test_rebuilding_model_index_creates_documents():
-    ExamplePageFactory.create_batch(10, body=fake.text(max_nb_chars=10))
-    index = ExamplePage.vector_index
+    BookPageFactory.create_batch(10, body=fake.text(max_nb_chars=10))
+    index = BookPage.vector_index
     index.rebuild_index()
     assert Document.objects.count() == 10

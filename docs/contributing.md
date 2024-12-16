@@ -45,7 +45,13 @@ For example, to bring up a development server on port `8000`, run:
 python testmanage.py runserver 0:8000
 ```
 
-If you have bootstrapped your environment with `tox`, there will be a default admin user (username: `admin`, password: `changeme`) available.
+If you have bootstrapped your environment with `tox`, there will be a default admin user (username: `admin`, password: `changeme`) available, as well as a set of test data.
+
+To create this test data manually, run:
+
+```shell
+python testmanage.py create_test_data
+```
 
 ### Developing with the pgvector storage provider
 

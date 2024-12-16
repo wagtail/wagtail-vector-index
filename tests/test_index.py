@@ -1,13 +1,13 @@
 import unittest
 
 import pytest
+from asgiref.sync import async_to_sync
 from factories import (
-    DifferentPageFactory,
-    ExampleModelFactory,
-    ExamplePageFactory,
+    BookPageFactory,
+    FilmPageFactory,
 )
 from faker import Faker
-from testapp.models import DifferentPage, ExampleModel, ExamplePage
+from testapp.models import AllMediaVectorIndex, BookPage, FilmPage
 from wagtail_vector_index.storage import registry
 from wagtail_vector_index.storage.base import VectorIndex
 from wagtail_vector_index.storage.django import EmbeddingField, ModelKey
@@ -18,16 +18,16 @@ fake = Faker()
 class TestRegistry:
     def test_registry(self):
         expected_class_names = [
-            "ExamplePageIndex",
-            "ExampleModelIndex",
-            "DifferentPageIndex",
-            "MultiplePageVectorIndex",
+            "BookPageIndex",
+            "FilmPageIndex",
+            "VideoGameIndex",
+            "AllMediaVectorIndex",
         ]
         assert set(registry._registry.keys()) == set(expected_class_names)
 
     def test_indexed_model_has_vector_index(self):
-        index = ExamplePage.vector_index
-        assert index.__class__.__name__ == "ExamplePageIndex"
+        index = BookPage.vector_index
+        assert index.__class__.__name__ == "BookPageIndex"
 
     def test_register_custom_vector_index(self):
         custom_index = type("MyVectorIndex", (VectorIndex,), {})()
@@ -38,29 +38,29 @@ class TestRegistry:
 class TestEmbeddingFields:
     def test_get_embedding_fields_count(self, patch_embedding_fields):
         with patch_embedding_fields(
-            ExamplePage, [EmbeddingField("test"), EmbeddingField("another_test")]
+            BookPage, [EmbeddingField("test"), EmbeddingField("another_test")]
         ):
-            assert len(ExamplePage._get_embedding_fields()) == 2
+            assert len(BookPage._get_embedding_fields()) == 2
 
     def test_embedding_fields_override(self, patch_embedding_fields):
         with patch_embedding_fields(
-            ExamplePage, [EmbeddingField("test"), EmbeddingField("test")]
+            BookPage, [EmbeddingField("test"), EmbeddingField("test")]
         ):
-            assert len(ExamplePage._get_embedding_fields()) == 1
+            assert len(BookPage._get_embedding_fields()) == 1
 
     def test_checking_search_fields_errors_with_invalid_field(
         self, patch_embedding_fields
     ):
-        with patch_embedding_fields(ExamplePage, [EmbeddingField("foo")]):
-            errors = ExamplePage.check()
+        with patch_embedding_fields(BookPage, [EmbeddingField("foo")]):
+            errors = BookPage.check()
             assert "wagtailai.WA001" in [error.id for error in errors]
 
 
 class TestIndexOperations:
     @pytest.mark.django_db
     def test_index_get_documents_returns_at_least_one_document_per_page(self):
-        pages = ExampleModelFactory.create_batch(10)
-        index = registry["ExampleModelIndex"]
+        pages = BookPageFactory.create_batch(10)
+        index = registry["BookPageIndex"]
         index.rebuild_index()
         documents = index.get_documents()
         found_pages = {
@@ -71,36 +71,34 @@ class TestIndexOperations:
 
     @pytest.mark.django_db
     def test_index_with_multiple_models(self):
-        example_pages = ExamplePageFactory.create_batch(5)
-        different_pages = DifferentPageFactory.create_batch(5)
-        index = registry["MultiplePageVectorIndex"]
-        index.rebuild_index()
+        book_pages = BookPageFactory.create_batch(5)
+        film_pages = FilmPageFactory.create_batch(5)
+        index = AllMediaVectorIndex()
 
-        example_pages_ids = {str(page.pk) for page in example_pages}
-        different_page_ids = {str(page.pk) for page in different_pages}
+        book_page_ids = {str(page.pk) for page in book_pages}
+        film_page_ids = {str(page.pk) for page in film_pages}
         found_page_ids = {
             ModelKey(document.object_keys[0]).object_id
             for document in index.get_documents()
         }
+        assert found_page_ids == book_page_ids.union(film_page_ids)
 
-        assert found_page_ids == example_pages_ids.union(different_page_ids)
-
-        similar_result = list(index.find_similar(DifferentPage.objects.first()))
+        similar_result = list(index.find_similar(FilmPage.objects.first()))
         assert len(similar_result) > 1
         for p in similar_result:
-            assert isinstance(p, (ExamplePage, DifferentPage))
+            assert isinstance(p, (FilmPage, BookPage))
 
         search_result = list(index.search("test"))
         assert len(search_result) > 1
         for p in search_result:
-            assert isinstance(p, (ExamplePage, DifferentPage))
+            assert isinstance(p, (FilmPage, BookPage))
 
 
 class TestSimilarityOperations:
     @pytest.mark.django_db
     def test_similar_returns_no_duplicates(self, mocker):
-        pages = ExampleModelFactory.create_batch(10)
-        vector_index = ExamplePage.vector_index
+        pages = BookPageFactory.create_batch(10)
+        vector_index = BookPage.vector_index
 
         def gen_pages(cls, *args, **kwargs):
             yield from pages
@@ -122,8 +120,8 @@ class TestSimilarityOperations:
 
     @pytest.mark.django_db
     def test_find_similar_with_similarity_threshold(self, mocker):
-        pages = ExampleModelFactory.create_batch(10)
-        vector_index = ExamplePage.vector_index
+        pages = BookPageFactory.create_batch(10)
+        vector_index = BookPage.vector_index
 
         def gen_pages(cls, *args, **kwargs):
             yield from pages
@@ -145,10 +143,10 @@ class TestSimilarityOperations:
         )
         assert set(actual) == set(pages), f"Expected {pages}, but got {actual}"
 
-    @pytest.mark.django_db(transaction=True)
-    async def test_afind_similar(self, mock_vector_index):
-        objs = [obj async for obj in ExampleModel.objects.all()]
-        actual = await mock_vector_index.afind_similar(
+    @pytest.mark.django_db
+    def test_afind_similar(self, mock_vector_index):
+        objs = BookPage.objects.all()
+        actual = async_to_sync(mock_vector_index.afind_similar)(
             objs[0], limit=100, include_self=False
         )
         assert set(actual) == set(objs[1:]), f"Expected {objs[1:]}, but got {actual}"
@@ -157,8 +155,8 @@ class TestSimilarityOperations:
 class TestQueryOperations:
     @pytest.mark.django_db
     def test_query_passes_sources_to_backend(self, mocker):
-        ExampleModelFactory.create_batch(2)
-        index = ExamplePage.vector_index
+        BookPageFactory.create_batch(2)
+        index = BookPage.vector_index
         documents = index.get_documents()[:2]
 
         def get_similar_documents(query_embedding, limit=0, similarity_threshold=0.0):
@@ -174,8 +172,8 @@ class TestQueryOperations:
 
     @pytest.mark.django_db
     def test_query_with_similarity_threshold(self, mocker):
-        ExampleModelFactory.create_batch(2)
-        index = ExamplePage.vector_index
+        BookPageFactory.create_batch(2)
+        index = BookPage.vector_index
         documents = index.get_documents()[:2]
 
         def get_similar_documents(query_embedding, limit=0, similarity_threshold=0.5):
@@ -225,8 +223,8 @@ class TestSearchOperations:
         if expected_count > 0:
             assert {result.title for result in results} == expected_titles
 
-    @pytest.mark.django_db(transaction=True)
-    async def test_asearch(self, mock_vector_index):
-        objs = [obj async for obj in ExampleModel.objects.all()]
-        actual = await mock_vector_index.asearch("test", limit=100)
+    @pytest.mark.django_db
+    def test_asearch(self, mock_vector_index):
+        objs = BookPage.objects.all()
+        actual = async_to_sync(mock_vector_index.asearch)("test", limit=100)
         assert set(actual) == set(objs), f"Expected {objs}, but got {actual}"

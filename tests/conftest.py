@@ -2,8 +2,8 @@ from collections.abc import Sequence
 from contextlib import contextmanager
 
 import pytest
-from factories import ExampleModelFactory
-from testapp.models import ExamplePage
+from factories import BookPageFactory
+from testapp.models import BookPage
 from wagtail_vector_index.ai_utils.backends.base import (
     BaseChatBackend,
     BaseChatConfig,
@@ -108,9 +108,9 @@ def mock_embedding_backend(get_vector_for_text):
 @pytest.fixture
 def test_objects():
     return [
-        ExampleModelFactory.create(title="Very similar to test"),
-        ExampleModelFactory.create(title="Somewhat similar to test"),
-        ExampleModelFactory.create(title="Not similar at all"),
+        BookPageFactory.create(title="Very similar to test"),
+        BookPageFactory.create(title="Somewhat similar to test"),
+        BookPageFactory.create(title="Not similar at all"),
     ]
 
 
@@ -132,16 +132,15 @@ def document_generator(test_objects, get_vector_for_text):
 
 
 @pytest.fixture
-def async_document_generator(test_objects, get_vector_for_text):
+def async_document_generator(test_objects, get_vector_for_text, document_generator):
     async def gen_documents(cls, *args, **kwargs):
         for obj in test_objects:
             vector = get_vector_for_text(obj.title)
-            doc = await Document.objects.acreate(
+            yield await Document.objects.acreate(
                 object_keys=[ModelKey.from_instance(obj)],
                 metadata={"title": obj.title, "object_id": str(obj.pk)},
                 vector=vector,
             )
-            yield doc
 
     return gen_documents
 
@@ -150,7 +149,7 @@ def async_document_generator(test_objects, get_vector_for_text):
 def mock_vector_index(
     mocker, mock_embedding_backend, document_generator, async_document_generator
 ):
-    vector_index = ExamplePage.vector_index
+    vector_index = BookPage.vector_index
 
     mocker.patch.object(
         vector_index, "get_embedding_backend", return_value=mock_embedding_backend

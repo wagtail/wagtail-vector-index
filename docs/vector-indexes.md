@@ -68,7 +68,7 @@ NOTE: Where `vector_index_class` is set on a subclass of `VectorIndexedMixin` th
 
 One of the things you might want to do with a custom index is query across multiple models, or on a subset of models. If the models share a common concrete parent model (e.g. Wagtail's `Page` model), then this can acheived by included them together in a custom vector index.
 
-To do this, override `querysets` or `_get_querysets()` on your custom Vector Index class:
+To do this, override `get_querysets()` on your custom Vector Index class:
 
 ```python
 from wagtail_vector_index.storage.django import (
@@ -78,10 +78,11 @@ from wagtail_vector_index.storage.django import (
 
 
 class MyVectorIndex(EmbeddableFieldsVectorIndexMixin, DefaultStorageVectorIndex):
-    querysets = [
-        InformationPage.objects.all(),
-        BlogPage.objects.filter(name__startswith="AI: "),
-    ]
+    def get_querysets(self):
+        return [
+            InformationPage.objects.all(),
+            BlogPage.objects.filter(name__startswith="AI: "),
+        ]
 ```
 
 Indexes of this nature must be registered with `wagtail-vector-index` before they can be used. The best place to do this is in the `ready()` method of an `AppConfig` class within your project. You may find it helpful to save your custom index and any other related code to a new `vector_index` app in your project; in which case, `vector_index/apps.py` might look something like this:
@@ -136,10 +137,11 @@ class MyDocumentConverter(EmbeddableFieldsDocumentConverter):
 class MyEmbeddableFieldsVectorIndex(
     EmbeddableFieldsVectorIndexMixin, DefaultStorageVectorIndex
 ):
-    querysets = [
-        MyModel.objects.all(),
-        MyOtherModel.objects.filter(name__startswith="AI: "),
-    ]
+    def get_querysets(self):
+        return [
+            MyModel.objects.all(),
+            MyOtherModel.objects.filter(name__startswith="AI: "),
+        ]
 
     def get_converter_class(self):
         return MyDocumentConverter

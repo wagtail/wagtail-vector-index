@@ -1,15 +1,14 @@
 import factory
 import pytest
-from asgiref.sync import sync_to_async
+from asgiref.sync import async_to_sync
 from factories import (
-    AsyncExampleModelFactory,
-    DifferentPageFactory,
+    BookPageFactory,
     DocumentFactory,
-    ExampleModelFactory,
-    ExamplePageFactory,
+    FilmPageFactory,
+    VideoGameFactory,
 )
 from faker import Faker
-from testapp.models import DifferentPage, ExamplePage
+from testapp.models import BookPage, FilmPage
 from wagtail_vector_index.ai import get_embedding_backend
 from wagtail_vector_index.storage.django import (
     EmbeddableFieldsDocumentConverter,
@@ -32,9 +31,9 @@ class TestChunking:
     def test_get_chunks_splits_content_into_multiple_chunks(
         self, patch_embedding_fields
     ):
-        with patch_embedding_fields(ExamplePage, [EmbeddingField("body")]):
+        with patch_embedding_fields(BookPage, [EmbeddingField("body")]):
             body = fake.text(max_nb_chars=1000)
-            instance = ExamplePageFactory.build(title="Important Title", body=body)
+            instance = BookPageFactory.build(title="Important Title", body=body)
             chunker = EmbeddableFieldsObjectChunkerOperator()
             chunks = chunker.chunk_object(instance, chunk_size=100)
             assert len(chunks) > 1
@@ -44,11 +43,11 @@ class TestChunking:
         self, patch_embedding_fields
     ):
         with patch_embedding_fields(
-            ExamplePage,
+            BookPage,
             [EmbeddingField("title", important=True), EmbeddingField("body")],
         ):
             body = fake.text(max_nb_chars=200)
-            instance = ExamplePageFactory.build(title="Important Title", body=body)
+            instance = BookPageFactory.build(title="Important Title", body=body)
             chunker = EmbeddableFieldsObjectChunkerOperator()
             chunks = chunker.chunk_object(instance, chunk_size=100)
             assert all(chunk.startswith(instance.title) for chunk in chunks)
@@ -56,19 +55,19 @@ class TestChunking:
 
 class TestFromDocument:
     def test_extract_model_class_from_label(self):
-        label = ModelLabel("testapp.ExamplePage")
+        label = ModelLabel("testapp.BookPage")
         model_class = ModelFromDocumentOperator._model_class_from_label(label)
-        assert model_class == ExamplePage
+        assert model_class == BookPage
 
     @pytest.mark.django_db
     def test_get_keys_by_model_label(self):
-        example_pages = ExamplePageFactory.create_batch(3)
-        different_pages = DifferentPageFactory.create_batch(3)
+        book_pages = BookPageFactory.create_batch(3)
+        film_pages = FilmPageFactory.create_batch(3)
         documents = DocumentFactory.create_batch(
             6,
             object_keys=factory.Iterator(
-                [[f"testapp.ExamplePage:{page.pk}"] for page in example_pages]
-                + [[f"testapp.DifferentPage:{page.pk}"] for page in different_pages]
+                [[f"testapp.BookPage:{page.pk}"] for page in book_pages]
+                + [[f"testapp.FilmPage:{page.pk}"] for page in film_pages]
             ),
         )
         keys_by_model_label = ModelFromDocumentOperator._get_keys_by_model_label(
@@ -76,20 +75,20 @@ class TestFromDocument:
         )
 
         assert len(keys_by_model_label) == 2
-        assert "testapp.ExamplePage" in keys_by_model_label
-        assert "testapp.DifferentPage" in keys_by_model_label
-        assert len(keys_by_model_label["testapp.ExamplePage"]) == 3
-        assert len(keys_by_model_label["testapp.DifferentPage"]) == 3
+        assert "testapp.BookPage" in keys_by_model_label
+        assert "testapp.FilmPage" in keys_by_model_label
+        assert len(keys_by_model_label["testapp.BookPage"]) == 3
+        assert len(keys_by_model_label["testapp.FilmPage"]) == 3
 
     @pytest.mark.django_db
     def test_get_models_by_key(self):
-        example_pages = ExamplePageFactory.create_batch(3)
-        different_pages = DifferentPageFactory.create_batch(3)
+        book_pages = BookPageFactory.create_batch(3)
+        film_pages = FilmPageFactory.create_batch(3)
         documents = DocumentFactory.create_batch(
             6,
             object_keys=factory.Iterator(
-                [[f"testapp.ExamplePage:{page.pk}"] for page in example_pages]
-                + [[f"testapp.DifferentPage:{page.pk}"] for page in different_pages]
+                [[f"testapp.BookPage:{page.pk}"] for page in book_pages]
+                + [[f"testapp.FilmPage:{page.pk}"] for page in film_pages]
             ),
         )
         keys_by_model_label = ModelFromDocumentOperator._get_keys_by_model_label(
@@ -100,38 +99,35 @@ class TestFromDocument:
         )
         assert len(models_by_key) == 6
         assert all(
-            isinstance(model, (ExamplePage, DifferentPage))
-            for model in models_by_key.values()
+            isinstance(model, (BookPage, FilmPage)) for model in models_by_key.values()
         )
 
     @pytest.mark.django_db
     def test_from_document_returns_model_object(self):
-        instance = ExamplePageFactory.create(
+        instance = BookPageFactory.create(
             title="Important Title", body=fake.text(max_nb_chars=200)
         )
         document = DocumentFactory.create(
-            object_keys=[f"testapp.ExamplePage:{instance.pk}"],
+            object_keys=[f"testapp.BookPage:{instance.pk}"],
         )
         operator = ModelFromDocumentOperator()
         recovered_instance = operator.from_document(document)
-        assert isinstance(recovered_instance, ExamplePage)
+        assert isinstance(recovered_instance, BookPage)
         assert recovered_instance.pk == instance.pk
 
     @pytest.mark.django_db
     def test_bulk_from_documents_returns_model_objects(self):
-        instances = ExamplePageFactory.create_batch(3)
+        instances = BookPageFactory.create_batch(3)
         documents = DocumentFactory.create_batch(
             3,
             object_keys=factory.Iterator(
-                [[f"testapp.ExamplePage:{page.pk}"] for page in instances]
+                [[f"testapp.BookPage:{page.pk}"] for page in instances]
             ),
         )
         operator = ModelFromDocumentOperator()
         recovered_instances = list(operator.bulk_from_documents(documents))
         assert len(recovered_instances) == 3
-        assert all(
-            isinstance(instance, ExamplePage) for instance in recovered_instances
-        )
+        assert all(isinstance(instance, BookPage) for instance in recovered_instances)
         assert all(
             instance.pk in [page.pk for page in instances]
             for instance in recovered_instances
@@ -139,11 +135,11 @@ class TestFromDocument:
 
     @pytest.mark.django_db
     def test_bulk_from_documents_returns_model_objects_in_order(self):
-        instances = ExamplePageFactory.create_batch(3)
+        instances = BookPageFactory.create_batch(3)
         documents = DocumentFactory.create_batch(
             3,
             object_keys=factory.Iterator(
-                [[f"testapp.ExamplePage:{page.pk}"] for page in instances]
+                [[f"testapp.BookPage:{page.pk}"] for page in instances]
             ),
         )
         operator = ModelFromDocumentOperator()
@@ -152,35 +148,35 @@ class TestFromDocument:
 
     @pytest.mark.django_db
     def test_bulk_from_documents_returns_model_objects_for_multiple_models(self):
-        example_pages = ExamplePageFactory.create_batch(3)
-        different_pages = DifferentPageFactory.create_batch(3)
+        book_pages = BookPageFactory.create_batch(3)
+        film_pages = FilmPageFactory.create_batch(3)
         documents = DocumentFactory.create_batch(
             6,
             object_keys=factory.Iterator(
-                [[f"testapp.ExamplePage:{page.pk}"] for page in example_pages]
-                + [[f"testapp.DifferentPage:{page.pk}"] for page in different_pages]
+                [[f"testapp.BookPage:{page.pk}"] for page in book_pages]
+                + [[f"testapp.FilmPage:{page.pk}"] for page in film_pages]
             ),
         )
         operator = ModelFromDocumentOperator()
         recovered_instances = list(operator.bulk_from_documents(documents))
         assert len(recovered_instances) == 6
         assert all(
-            isinstance(instance, (ExamplePage, DifferentPage))
+            isinstance(instance, (BookPage, FilmPage))
             for instance in recovered_instances
         )
         assert all(
-            instance.pk in [page.pk for page in example_pages + different_pages]
+            instance.pk in [page.pk for page in book_pages + film_pages]
             for instance in recovered_instances
         )
 
     @pytest.mark.django_db
     def test_bulk_from_documents_returns_deduplicated_model_objects(self):
-        instance = ExamplePageFactory.create(
+        instance = BookPageFactory.create(
             title="Important Title", body=fake.text(max_nb_chars=200)
         )
         documents = DocumentFactory.create_batch(
             3,
-            object_keys=[f"testapp.ExamplePage:{instance.pk}"],
+            object_keys=[f"testapp.BookPage:{instance.pk}"],
         )
         operator = ModelFromDocumentOperator()
         recovered_instances = list(operator.bulk_from_documents(documents))
@@ -191,7 +187,7 @@ class TestFromDocument:
 class TestToDocument:
     @pytest.mark.django_db
     def test_generate_documents_returns_documents(self):
-        instance = ExamplePageFactory.create(
+        instance = BookPageFactory.create(
             title="Important Title", body=fake.text(max_nb_chars=200)
         )
         operator = ModelToDocumentOperator(EmbeddableFieldsObjectChunkerOperator)
@@ -205,7 +201,7 @@ class TestToDocument:
 
     @pytest.mark.django_db
     def test_bulk_generate_documents_returns_documents(self):
-        instances = ExamplePageFactory.create_batch(3)
+        instances = BookPageFactory.create_batch(3)
         operator = ModelToDocumentOperator(EmbeddableFieldsObjectChunkerOperator)
         documents = list(
             operator.to_documents(
@@ -220,26 +216,27 @@ class TestToDocument:
 
     @pytest.mark.django_db
     def test_bulk_generate_documents_returns_documents_for_multiple_models(self):
-        example_pages = ExamplePageFactory.create_batch(3)
-        different_pages = DifferentPageFactory.create_batch(3)
+        book_pages = BookPageFactory.create_batch(3)
+        film_pages = FilmPageFactory.create_batch(3)
         operator = ModelToDocumentOperator(EmbeddableFieldsObjectChunkerOperator)
         documents = list(
             operator.to_documents(
-                example_pages + different_pages,
+                book_pages + film_pages,
                 embedding_backend=get_embedding_backend("default"),
             )
         )
         assert len(documents) == 6
         assert all(
-            document.content == f"{instance.title}\n{instance.body}"
+            document.content
+            == f"{instance.title}\n{instance.body or instance.description}"
             for document, instance in zip(
-                documents, example_pages + different_pages, strict=False
+                documents, book_pages + film_pages, strict=False
             )
         )
 
     @pytest.mark.django_db
     def test_to_documents_batches_objects(self, mocker):
-        instances = ExamplePageFactory.create_batch(10)
+        instances = BookPageFactory.create_batch(10)
         operator = ModelToDocumentOperator(EmbeddableFieldsObjectChunkerOperator)
         to_documents_batch_mock = mocker.patch.object(operator, "_to_documents_batch")
         list(
@@ -255,8 +252,8 @@ class TestToDocument:
 class TestConverter:
     @pytest.mark.django_db
     def test_returns_original_object(self, patch_embedding_fields):
-        with patch_embedding_fields(ExamplePage, [EmbeddingField("body")]):
-            instance = ExamplePageFactory.create(
+        with patch_embedding_fields(BookPage, [EmbeddingField("body")]):
+            instance = BookPageFactory.create(
                 title="Important Title", body=fake.text(max_nb_chars=200)
             )
             converter = EmbeddableFieldsDocumentConverter()
@@ -266,14 +263,14 @@ class TestConverter:
                 )
             )
             recovered_instance = converter.from_document(document)
-            assert isinstance(recovered_instance, ExamplePage)
+            assert isinstance(recovered_instance, BookPage)
             assert recovered_instance.pk == instance.pk
 
 
 @pytest.mark.django_db
 def test_convert_single_document_to_object():
     converter = EmbeddableFieldsDocumentConverter()
-    instance = ExamplePageFactory.create(
+    instance = BookPageFactory.create(
         title="Important Title", body=fake.text(max_nb_chars=200)
     )
     documents = list(
@@ -282,17 +279,17 @@ def test_convert_single_document_to_object():
         )
     )
     recovered_instance = converter.from_document(documents[0])
-    assert isinstance(recovered_instance, ExamplePage)
+    assert isinstance(recovered_instance, BookPage)
     assert recovered_instance.pk == instance.pk
 
 
 @pytest.mark.django_db
 def test_convert_multiple_documents_to_objects():
     converter = EmbeddableFieldsDocumentConverter()
-    example_objects = ExampleModelFactory.create_batch(5)
-    example_pages = ExamplePageFactory.create_batch(5)
-    different_pages = DifferentPageFactory.create_batch(5)
-    all_objects = list(example_objects + example_pages + different_pages)
+    book_pages = BookPageFactory.create_batch(5)
+    film_pages = FilmPageFactory.create_batch(5)
+    video_games = VideoGameFactory.create_batch(5)
+    all_objects = list(book_pages + film_pages + video_games)
     documents = list(
         converter.to_documents(
             all_objects, embedding_backend=get_embedding_backend("default")
@@ -304,13 +301,13 @@ def test_convert_multiple_documents_to_objects():
 
 class TestToDocumentOperatorAsync:
     @pytest.mark.django_db(transaction=True)
-    async def test_ato_documents_batch(self, mock_embedding_backend):
-        instance = await AsyncExampleModelFactory.create(
-            title="Important Title", body=fake.text(max_nb_chars=200)
+    def test_ato_documents_batch(self, mock_embedding_backend):
+        instance = VideoGameFactory.create(
+            title="Important Title", description=fake.text(max_nb_chars=200)
         )
         operator = ModelToDocumentOperator(EmbeddableFieldsObjectChunkerOperator)
 
-        documents = await operator._ato_documents_batch(
+        documents = async_to_sync(operator._ato_documents_batch)(
             [instance], embedding_backend=mock_embedding_backend
         )
 
@@ -319,18 +316,16 @@ class TestToDocumentOperatorAsync:
         assert all(instance.title in doc.content for doc in documents)
 
     @pytest.mark.django_db(transaction=True)
-    async def test_aupdate_object_collection_with_new_documents(
-        self, mock_embedding_backend
-    ):
-        instance = await AsyncExampleModelFactory.create()
-        collection = await sync_to_async(PreparedObjectCollection.prepare_objects)(
+    def test_aupdate_object_collection_with_new_documents(self, mock_embedding_backend):
+        instance = VideoGameFactory.create()
+        collection = PreparedObjectCollection.prepare_objects(
             objects=[instance],
             chunker_operator=EmbeddableFieldsObjectChunkerOperator(),
             embedding_backend=mock_embedding_backend,
         )
 
         operator = ModelToDocumentOperator(EmbeddableFieldsObjectChunkerOperator)
-        await operator._aupdate_object_collection_with_new_documents(
+        async_to_sync(operator._aupdate_object_collection_with_new_documents)(
             collection, mock_embedding_backend
         )
 
@@ -343,7 +338,7 @@ class TestToDocumentOperatorAsync:
 class TestPreparedObject:
     @pytest.mark.django_db
     def test_needs_updating_when_no_existing_documents(self):
-        instance = ExamplePageFactory.build()
+        instance = BookPageFactory.build()
         prepared_object = PreparedObject(
             key=ModelKey.from_instance(instance),
             object=instance,
@@ -353,7 +348,7 @@ class TestPreparedObject:
 
     @pytest.mark.django_db
     def test_needs_updating_when_chunks_match(self):
-        instance = ExamplePageFactory.build()
+        instance = BookPageFactory.build()
         prepared_object = PreparedObject(
             key=ModelKey.from_instance(instance),
             object=instance,
@@ -367,7 +362,7 @@ class TestPreparedObject:
 
     @pytest.mark.django_db
     def test_needs_updating_when_chunks_differ(self):
-        instance = ExamplePageFactory.build()
+        instance = BookPageFactory.build()
         prepared_object = PreparedObject(
             key=ModelKey.from_instance(instance),
             object=instance,
@@ -381,7 +376,7 @@ class TestPreparedObject:
 
     @pytest.mark.django_db
     def test_documents_returns_new_documents_when_present(self):
-        instance = ExamplePageFactory.build()
+        instance = BookPageFactory.build()
         new_docs = [DocumentFactory.build(), DocumentFactory.build()]
         existing_docs = [DocumentFactory.build(), DocumentFactory.build()]
 
@@ -396,7 +391,7 @@ class TestPreparedObject:
 
     @pytest.mark.django_db
     def test_documents_returns_existing_documents_when_no_new_ones(self):
-        instance = ExamplePageFactory.build()
+        instance = BookPageFactory.build()
         existing_docs = [DocumentFactory.build(), DocumentFactory.build()]
 
         prepared_object = PreparedObject(
@@ -411,8 +406,8 @@ class TestPreparedObject:
 class TestPreparedObjectCollection:
     @pytest.mark.django_db
     def test_prepare_objects(self, patch_embedding_fields):
-        with patch_embedding_fields(ExamplePage, [EmbeddingField("body")]):
-            instances = ExamplePageFactory.create_batch(3)
+        with patch_embedding_fields(BookPage, [EmbeddingField("body")]):
+            instances = BookPageFactory.create_batch(3)
             chunker = EmbeddableFieldsObjectChunkerOperator()
 
             collection = PreparedObjectCollection.prepare_objects(
@@ -427,7 +422,7 @@ class TestPreparedObjectCollection:
 
     @pytest.mark.django_db
     def test_get_chunk_mapping(self):
-        instances = ExamplePageFactory.build_batch(2)
+        instances = BookPageFactory.build_batch(2)
         prepared_objects = [
             PreparedObject(
                 key=ModelKey.from_instance(instance),
@@ -444,7 +439,7 @@ class TestPreparedObjectCollection:
 
     @pytest.mark.django_db
     def test_prepare_new_documents(self):
-        instances = ExamplePageFactory.create_batch(2)
+        instances = BookPageFactory.create_batch(2)
         prepared_objects = [
             PreparedObject(
                 key=ModelKey.from_instance(instance),
