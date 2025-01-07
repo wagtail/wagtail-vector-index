@@ -10,10 +10,8 @@ from factories import (
 from faker import Faker
 from testapp.models import BookPage, FilmPage
 from wagtail_vector_index.ai import get_embedding_backend
+from wagtail_vector_index.storage.chunking import EmbeddingField
 from wagtail_vector_index.storage.django import (
-    EmbeddableFieldsDocumentConverter,
-    EmbeddableFieldsObjectChunkerOperator,
-    EmbeddingField,
     ModelFromDocumentOperator,
     ModelKey,
     ModelLabel,
@@ -34,8 +32,7 @@ class TestChunking:
         with patch_embedding_fields(BookPage, [EmbeddingField("body")]):
             body = fake.text(max_nb_chars=1000)
             instance = BookPageFactory.build(title="Important Title", body=body)
-            chunker = EmbeddableFieldsObjectChunkerOperator()
-            chunks = chunker.chunk_object(instance, chunk_size=100)
+            chunks = instance.get_chunks(chunk_size=100)
             assert len(chunks) > 1
 
     @pytest.mark.django_db
@@ -48,8 +45,7 @@ class TestChunking:
         ):
             body = fake.text(max_nb_chars=200)
             instance = BookPageFactory.build(title="Important Title", body=body)
-            chunker = EmbeddableFieldsObjectChunkerOperator()
-            chunks = chunker.chunk_object(instance, chunk_size=100)
+            chunks = instance.get_chunks(chunk_size=100)
             assert all(chunk.startswith(instance.title) for chunk in chunks)
 
 
@@ -190,7 +186,7 @@ class TestToDocument:
         instance = BookPageFactory.create(
             title="Important Title", body=fake.text(max_nb_chars=200)
         )
-        operator = ModelToDocumentOperator(EmbeddableFieldsObjectChunkerOperator)
+        operator = ModelToDocumentOperator()
         documents = list(
             operator.to_documents(
                 [instance], embedding_backend=get_embedding_backend("default")
@@ -202,7 +198,7 @@ class TestToDocument:
     @pytest.mark.django_db
     def test_bulk_generate_documents_returns_documents(self):
         instances = BookPageFactory.create_batch(3)
-        operator = ModelToDocumentOperator(EmbeddableFieldsObjectChunkerOperator)
+        operator = ModelToDocumentOperator()
         documents = list(
             operator.to_documents(
                 instances, embedding_backend=get_embedding_backend("default")
@@ -218,7 +214,7 @@ class TestToDocument:
     def test_bulk_generate_documents_returns_documents_for_multiple_models(self):
         book_pages = BookPageFactory.create_batch(3)
         film_pages = FilmPageFactory.create_batch(3)
-        operator = ModelToDocumentOperator(EmbeddableFieldsObjectChunkerOperator)
+        operator = ModelToDocumentOperator()
         documents = list(
             operator.to_documents(
                 book_pages + film_pages,
@@ -237,7 +233,7 @@ class TestToDocument:
     @pytest.mark.django_db
     def test_to_documents_batches_objects(self, mocker):
         instances = BookPageFactory.create_batch(10)
-        operator = ModelToDocumentOperator(EmbeddableFieldsObjectChunkerOperator)
+        operator = ModelToDocumentOperator()
         to_documents_batch_mock = mocker.patch.object(operator, "_to_documents_batch")
         list(
             operator.to_documents(
@@ -256,46 +252,44 @@ class TestConverter:
             instance = BookPageFactory.create(
                 title="Important Title", body=fake.text(max_nb_chars=200)
             )
-            converter = EmbeddableFieldsDocumentConverter()
+            converter = ModelToDocumentOperator()
             document = next(
                 converter.to_documents(
                     [instance], embedding_backend=get_embedding_backend("default")
                 )
             )
-            recovered_instance = converter.from_document(document)
+            recovered_instance = ModelFromDocumentOperator().from_document(document)
             assert isinstance(recovered_instance, BookPage)
             assert recovered_instance.pk == instance.pk
 
 
 @pytest.mark.django_db
 def test_convert_single_document_to_object():
-    converter = EmbeddableFieldsDocumentConverter()
     instance = BookPageFactory.create(
         title="Important Title", body=fake.text(max_nb_chars=200)
     )
     documents = list(
-        converter.to_documents(
+        ModelToDocumentOperator().to_documents(
             [instance], embedding_backend=get_embedding_backend("default")
         )
     )
-    recovered_instance = converter.from_document(documents[0])
+    recovered_instance = ModelFromDocumentOperator().from_document(documents[0])
     assert isinstance(recovered_instance, BookPage)
     assert recovered_instance.pk == instance.pk
 
 
 @pytest.mark.django_db
 def test_convert_multiple_documents_to_objects():
-    converter = EmbeddableFieldsDocumentConverter()
     book_pages = BookPageFactory.create_batch(5)
     film_pages = FilmPageFactory.create_batch(5)
     video_games = VideoGameFactory.create_batch(5)
     all_objects = list(book_pages + film_pages + video_games)
     documents = list(
-        converter.to_documents(
+        ModelToDocumentOperator().to_documents(
             all_objects, embedding_backend=get_embedding_backend("default")
         )
     )
-    recovered_objects = list(converter.bulk_from_documents(documents))
+    recovered_objects = list(ModelFromDocumentOperator().bulk_from_documents(documents))
     assert recovered_objects == all_objects
 
 
@@ -305,7 +299,7 @@ class TestToDocumentOperatorAsync:
         instance = VideoGameFactory.create(
             title="Important Title", description=fake.text(max_nb_chars=200)
         )
-        operator = ModelToDocumentOperator(EmbeddableFieldsObjectChunkerOperator)
+        operator = ModelToDocumentOperator()
 
         documents = async_to_sync(operator._ato_documents_batch)(
             [instance], embedding_backend=mock_embedding_backend
@@ -320,11 +314,10 @@ class TestToDocumentOperatorAsync:
         instance = VideoGameFactory.create()
         collection = PreparedObjectCollection.prepare_objects(
             objects=[instance],
-            chunker_operator=EmbeddableFieldsObjectChunkerOperator(),
             embedding_backend=mock_embedding_backend,
         )
 
-        operator = ModelToDocumentOperator(EmbeddableFieldsObjectChunkerOperator)
+        operator = ModelToDocumentOperator()
         async_to_sync(operator._aupdate_object_collection_with_new_documents)(
             collection, mock_embedding_backend
         )
@@ -408,11 +401,9 @@ class TestPreparedObjectCollection:
     def test_prepare_objects(self, patch_embedding_fields):
         with patch_embedding_fields(BookPage, [EmbeddingField("body")]):
             instances = BookPageFactory.create_batch(3)
-            chunker = EmbeddableFieldsObjectChunkerOperator()
 
             collection = PreparedObjectCollection.prepare_objects(
                 objects=instances,
-                chunker_operator=chunker,
                 embedding_backend=get_embedding_backend("default"),
             )
 

@@ -8,37 +8,36 @@ from collections.abc import (
 )
 from dataclasses import dataclass, field
 from itertools import chain, islice
-from typing import ClassVar, Iterator, Optional, Type, TypeAlias, cast
+from typing import (
+    ClassVar,
+    Iterator,
+    Optional,
+    TypeAlias,
+    cast,
+)
 
 from asgiref.sync import sync_to_async
 from django.apps import apps
-from django.core import checks
-from django.core.exceptions import FieldDoesNotExist
 from django.db import models, transaction
 from django.utils.functional import classproperty  # type: ignore
 from wagtail.models import Page
 from wagtail.query import PageQuerySet
-from wagtail.search.index import BaseField
 
 from wagtail_vector_index.ai_utils.backends.base import BaseEmbeddingBackend
-from wagtail_vector_index.ai_utils.text_splitting.langchain import (
-    LangchainRecursiveCharacterTextSplitter,
-)
-from wagtail_vector_index.ai_utils.text_splitting.naive import (
-    NaiveTextSplitterCalculator,
-)
-from wagtail_vector_index.ai_utils.types import TextSplitterProtocol
 from wagtail_vector_index.storage import get_storage_provider, registry
-from wagtail_vector_index.storage.base import (
-    DocumentConverter,
-    DocumentRetrievalVectorIndexMixinProtocol,
+from wagtail_vector_index.storage.chunking import (
+    ChunkableProtocol,
+    ModelChunkableMixin,
+)
+from wagtail_vector_index.storage.conversion import (
     FromDocumentOperator,
-    ObjectChunkerOperator,
     ToDocumentOperator,
-    VectorIndex,
 )
 from wagtail_vector_index.storage.exceptions import IndexedTypeFromDocumentError
+from wagtail_vector_index.storage.index import ConvertedVectorIndex, VectorIndex
 from wagtail_vector_index.storage.models import Document
+
+from .chunking import EmbeddingField  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +46,6 @@ logger = logging.getLogger(__name__)
 This includes:
 
 - The Embedding Django model, which is used to store embeddings for model instances in the database
-- The EmbeddableFieldsMixin, which is a mixin for Django models that lets user define which fields should be used to generate embeddings
 - The EmbeddableFieldsVectorIndexMixin, which is a VectorIndex mixin that expects EmbeddableFieldsMixin models
 - The EmbeddableFieldsDocumentConverter, which is a DocumentConverter that knows how to convert a model instance using the EmbeddableFieldsMixin protocol to and from a Document
 """
@@ -94,62 +92,6 @@ class ModelKey(str):
 # ###########
 
 
-class EmbeddingField(BaseField):
-    """A field that can be used to specify which fields of a model should be used to generate embeddings"""
-
-    def __init__(self, *args, important=False, **kwargs):
-        self.important = important
-        super().__init__(*args, **kwargs)
-
-
-class EmbeddableFieldsMixin(models.Model):
-    """Mixin for Django models that allows the user to specify which fields should be used to generate embeddings."""
-
-    embedding_fields = []
-
-    class Meta:
-        abstract = True
-
-    @classmethod
-    def _get_embedding_fields(cls) -> list["EmbeddingField"]:
-        embedding_fields = {
-            (type(field), field.field_name): field for field in cls.embedding_fields
-        }
-        return list(embedding_fields.values())
-
-    @classmethod
-    def check(cls, **kwargs):
-        """Extend model checks to include validation of embedding_fields in the
-        same way that Wagtail's Indexed class does it."""
-        errors = super().check(**kwargs)
-        errors.extend(cls._check_embedding_fields(**kwargs))
-        return errors
-
-    @classmethod
-    def _has_field(cls, name):
-        try:
-            cls._meta.get_field(name)
-        except FieldDoesNotExist:
-            return hasattr(cls, name)
-        else:
-            return True
-
-    @classmethod
-    def _check_embedding_fields(cls, **kwargs):
-        errors = []
-        for field_ in cls._get_embedding_fields():
-            message = "{model}.embedding_fields contains non-existent field '{name}'"
-            if not cls._has_field(field_.field_name):
-                errors.append(
-                    checks.Warning(
-                        message.format(model=cls.__name__, name=field_.field_name),
-                        obj=cls,
-                        id="wagtailai.WA001",
-                    )
-                )
-        return errors
-
-
 class ModelFromDocumentOperator(FromDocumentOperator[models.Model]):
     """A class that can convert Documents into model instances"""
 
@@ -163,8 +105,9 @@ class ModelFromDocumentOperator(FromDocumentOperator[models.Model]):
             raise IndexedTypeFromDocumentError("No object found for document") from e
 
     def bulk_from_documents(
-        self, documents: Sequence[Document]
+        self, documents: Iterable[Document]
     ) -> Generator[models.Model, None, None]:
+        documents = list(documents)
         keys_by_model_label = self._get_keys_by_model_label(documents)
         objects_by_key = self._get_models_by_key(keys_by_model_label)
 
@@ -173,9 +116,10 @@ class ModelFromDocumentOperator(FromDocumentOperator[models.Model]):
         )
 
     async def abulk_from_documents(
-        self, documents: Sequence[Document]
+        self, documents: Iterable[Document]
     ) -> AsyncGenerator[models.Model, None]:
         """A copy of `bulk_from_documents`, but async"""
+        documents = list(documents)
         keys_by_model_label = self._get_keys_by_model_label(documents)
         objects_by_key = await self._aget_models_by_key(keys_by_model_label)
 
@@ -293,9 +237,8 @@ class PreparedObjectCollection:
     @classmethod
     def prepare_objects(
         cls,
-        objects: Iterable[models.Model],
+        objects: Iterable[ChunkableProtocol],
         *,
-        chunker_operator: ObjectChunkerOperator,
         embedding_backend: BaseEmbeddingBackend,
     ) -> "PreparedObjectCollection":
         """Create a PreparedObjectCollection from a list of model instances"""
@@ -305,9 +248,7 @@ class PreparedObjectCollection:
         for object in objects:
             key = ModelKey.from_instance(object)
             chunks = list(
-                chunker_operator.chunk_object(
-                    object, chunk_size=embedding_backend.config.token_limit
-                )
+                object.get_chunks(chunk_size=embedding_backend.config.token_limit)
             )
             prepared_objects.append(
                 PreparedObject(key=key, object=object, chunks=chunks)
@@ -391,9 +332,6 @@ class PreparedObjectCollection:
 class ModelToDocumentOperator(ToDocumentOperator[models.Model]):
     """A class that can generate Documents from model instances"""
 
-    def __init__(self, object_chunker_operator_class: Type[ObjectChunkerOperator]):
-        self.object_chunker_operator = object_chunker_operator_class()
-
     @transaction.atomic
     def update_documents(
         self,
@@ -446,7 +384,6 @@ class ModelToDocumentOperator(ToDocumentOperator[models.Model]):
     ):
         collection = PreparedObjectCollection.prepare_objects(
             objects=objects,
-            chunker_operator=self.object_chunker_operator,
             embedding_backend=embedding_backend,
         )
         self._update_object_collection_with_new_documents(collection, embedding_backend)
@@ -474,7 +411,6 @@ class ModelToDocumentOperator(ToDocumentOperator[models.Model]):
     ):
         collection = await sync_to_async(PreparedObjectCollection.prepare_objects)(
             objects=objects,
-            chunker_operator=self.object_chunker_operator,
             embedding_backend=embedding_backend,
         )
         await self._aupdate_object_collection_with_new_documents(
@@ -526,103 +462,41 @@ class ModelToDocumentOperator(ToDocumentOperator[models.Model]):
                 yield document
 
 
-class EmbeddableFieldsObjectChunkerOperator(
-    ObjectChunkerOperator[EmbeddableFieldsMixin]
-):
-    def chunk_object(
-        self, object: EmbeddableFieldsMixin, *, chunk_size: int
-    ) -> list[str]:
-        """Split the contents of a model instance's `embedding_fields` in to smaller chunks"""
-        splittable_content = []
-        important_content = []
-        embedding_fields = object._meta.model._get_embedding_fields()
-
-        for field_ in embedding_fields:
-            value = field_.get_value(object)
-            if value is None:
-                continue
-            if isinstance(value, str):
-                final_value = value
-            else:
-                final_value: str = "\n".join((str(v) for v in value))
-            if field_.important:
-                important_content.append(final_value)
-            else:
-                splittable_content.append(final_value)
-
-        text = "\n".join(splittable_content)
-        important_text = "\n".join(important_content)
-        splitter = self._get_text_splitter_class(chunk_size=chunk_size)
-        return [f"{important_text}\n{text}" for text in splitter.split_text(text)]
-
-    @staticmethod
-    def _get_text_splitter_class(chunk_size: int) -> TextSplitterProtocol:
-        length_calculator = NaiveTextSplitterCalculator()
-        return LangchainRecursiveCharacterTextSplitter(
-            chunk_size=chunk_size,
-            chunk_overlap=100,
-            length_function=length_calculator.get_splitter_length,
-        )
-
-
-class EmbeddableFieldsDocumentConverter(DocumentConverter):
-    """Implementation of DocumentConverter that knows how to convert a model instance using the
-    EmbeddableFieldsMixin to and from a Document.
-    """
-
-    to_document_operator_class = ModelToDocumentOperator
-    from_document_operator_class = ModelFromDocumentOperator
-    object_chunker_operator_class = EmbeddableFieldsObjectChunkerOperator
-
-
 # ###########
 # VectorIndex mixins which add model-specific behaviour
 # ###########
 
 
-class EmbeddableFieldsVectorIndexMixin:
-    """A Mixin for VectorIndex which indexes the results of querysets of EmbeddableFieldsMixin models"""
+class ModelVectorIndex(ConvertedVectorIndex):
+    """A VectorIndex which indexes the results of querysets of models"""
+
+    to_document_operator_class = ModelToDocumentOperator
+    from_document_operator_class = ModelFromDocumentOperator
 
     def get_querysets(self) -> Sequence[models.QuerySet]:
         return []
-
-    def get_converter_class(self) -> type[EmbeddableFieldsDocumentConverter]:
-        return EmbeddableFieldsDocumentConverter
-
-    def get_converter(self) -> EmbeddableFieldsDocumentConverter:
-        return self.get_converter_class()()
 
     def get_documents(self) -> Iterable[Document]:
         querysets = self.get_querysets()
         all_documents = []
 
-        backend = cast(
-            DocumentRetrievalVectorIndexMixinProtocol, self
-        ).get_embedding_backend()
         for queryset in querysets:
             # We need to consume the generator here to ensure that the
-            # Embedding models are created, even if it is not consumed
+            # Documents are created, even if it is not consumed
             # by the caller
-            all_documents += list(
-                self.get_converter().to_documents(queryset, embedding_backend=backend)
-            )
+            all_documents += list(self.to_documents(queryset))
         return all_documents
 
     async def aget_documents(self) -> AsyncGenerator[Document, None]:
         querysets = self.get_querysets()
 
-        backend = cast(
-            DocumentRetrievalVectorIndexMixinProtocol, self
-        ).get_embedding_backend()
         for queryset in querysets:
-            async for document in self.get_converter().ato_documents(
-                queryset, embedding_backend=backend
-            ):
+            async for document in self.ato_documents(queryset):
                 yield document
 
 
-class PageEmbeddableFieldsVectorIndexMixin(EmbeddableFieldsVectorIndexMixin):
-    """A mixin for VectorIndex for use with Wagtail pages that automatically
+class PageModelVectorIndex(ModelVectorIndex):
+    """A VectorIndex for use with Wagtail pages that automatically
     restricts indexed models to live pages."""
 
     querysets: Sequence[PageQuerySet]
@@ -695,10 +569,10 @@ class GeneratedIndexMixin(models.Model):
             storage_mixin_cls = storage_provider.index_mixin
             # If the model is a Wagtail Page, use a special PageEmbeddableFieldsVectorIndexMixin
             if issubclass(cls, Page):
-                mixin_cls = PageEmbeddableFieldsVectorIndexMixin
-            # Otherwise use the standard EmbeddableFieldsVectorIndexMixin
+                mixin_cls = PageModelVectorIndex
+            # Otherwise use the standard ModelVectorIndexMixin
             else:
-                mixin_cls = EmbeddableFieldsVectorIndexMixin
+                mixin_cls = ModelVectorIndex
             class_list = (
                 mixin_cls,
                 storage_mixin_cls,
@@ -723,7 +597,7 @@ class GeneratedIndexMixin(models.Model):
         return registry[cls.generated_index_class_name()]
 
 
-class VectorIndexedMixin(EmbeddableFieldsMixin, GeneratedIndexMixin, models.Model):
+class VectorIndexedMixin(ModelChunkableMixin, GeneratedIndexMixin, models.Model):
     """Model mixin which adds both the embeddable fields behaviour and the automatic index behaviour to a model."""
 
     class Meta:

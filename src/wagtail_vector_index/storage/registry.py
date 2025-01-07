@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .base import VectorIndex
+    from .conversion import VectorIndex
 
 
 class VectorIndexRegistry:

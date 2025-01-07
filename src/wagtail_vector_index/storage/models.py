@@ -7,7 +7,7 @@ from django.db import connection, models
 from django.db.models import Q
 
 if TYPE_CHECKING:
-    from wagtail_vector_index.storage.base import DocumentFilter
+    from wagtail_vector_index.storage.conversion import DocumentFilter
 
 
 class DocumentQuerySet(models.QuerySet):

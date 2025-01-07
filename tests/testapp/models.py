@@ -6,8 +6,8 @@ from wagtail.fields import RichTextField
 from wagtail.models import Page
 from wagtail_vector_index.storage.django import (
     DefaultStorageVectorIndex,
-    EmbeddableFieldsVectorIndexMixin,
     EmbeddingField,
+    ModelVectorIndex,
     VectorIndexedMixin,
 )
 from wagtail_vector_index.storage.registry import registry
@@ -57,13 +57,18 @@ class VideoGame(VectorIndexedMixin, models.Model):
         return self.description
 
 
-class AllMediaVectorIndex(EmbeddableFieldsVectorIndexMixin, DefaultStorageVectorIndex):
+class AllMediaVectorIndex(ModelVectorIndex, DefaultStorageVectorIndex):
     def get_querysets(self) -> Sequence[models.QuerySet]:
         return [
             BookPage.objects.all(),
             FilmPage.objects.all(),
             VideoGame.objects.all(),
         ]
+
+
+class BookVectorIndex(ModelVectorIndex):
+    def get_querysets(self) -> Sequence[models.QuerySet]:
+        return [BookPage.objects.all()]
 
 
 registry.register_index(AllMediaVectorIndex())

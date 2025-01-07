@@ -1,7 +1,11 @@
+import contextlib
 from collections.abc import Sequence
 from contextlib import contextmanager
+from unittest import mock
+from unittest.mock import patch
 
 import pytest
+from django.db import connections
 from factories import BookPageFactory
 from testapp.models import BookPage
 from wagtail_vector_index.ai_utils.backends.base import (
@@ -13,6 +17,35 @@ from wagtail_vector_index.ai_utils.backends.base import (
 from wagtail_vector_index.ai_utils.types import AIResponse
 from wagtail_vector_index.storage.django import ModelKey
 from wagtail_vector_index.storage.models import Document
+
+
+@pytest.fixture(autouse=True)
+def fix_async_db(request):
+    if (
+        request.node.get_closest_marker("asyncio") is None
+        or request.node.get_closest_marker("django_db") is None
+    ):
+        # Only run for async tests that use the database
+        yield
+        return
+
+    main_thread_local = connections._connections
+    for conn in connections.all():
+        conn.inc_thread_sharing()
+
+    main_thread_default_conn = main_thread_local._storage.default
+    main_thread_storage = main_thread_local._lock_storage
+
+    @contextlib.contextmanager
+    def _lock_storage():
+        yield mock.Mock(default=main_thread_default_conn)
+
+    try:
+        with patch.object(main_thread_default_conn, "close"):
+            object.__setattr__(main_thread_local, "_lock_storage", _lock_storage)
+            yield
+    finally:
+        object.__setattr__(main_thread_local, "_lock_storage", main_thread_storage)
 
 
 @pytest.fixture
@@ -156,12 +189,12 @@ def mock_vector_index(
     )
 
     mocker.patch(
-        "wagtail_vector_index.storage.django.EmbeddableFieldsDocumentConverter.to_documents",
+        "wagtail_vector_index.storage.django.ModelToDocumentOperator.to_documents",
         side_effect=document_generator,
     )
 
     mocker.patch(
-        "wagtail_vector_index.storage.django.EmbeddableFieldsDocumentConverter.ato_documents",
+        "wagtail_vector_index.storage.django.ModelToDocumentOperator.ato_documents",
         side_effect=async_document_generator,
     )
 

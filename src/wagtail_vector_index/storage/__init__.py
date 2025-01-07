@@ -8,7 +8,7 @@ from django.utils.module_loading import import_string
 from .registry import registry  # noqa: F401
 
 if TYPE_CHECKING:
-    from wagtail_vector_index.storage.base import StorageProvider
+    from wagtail_vector_index.storage.conversion import StorageProvider
 
 
 class InvalidStorageProviderError(ImproperlyConfigured):

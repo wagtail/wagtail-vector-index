@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 import weaviate
 from django.core.exceptions import ImproperlyConfigured
 
-from wagtail_vector_index.storage.base import (
+from wagtail_vector_index.storage.conversion import (
     Document,
     StorageProvider,
     StorageVectorIndexMixinProtocol,

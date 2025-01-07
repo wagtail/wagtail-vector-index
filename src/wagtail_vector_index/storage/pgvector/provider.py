@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from django.db.models import F
 
-from wagtail_vector_index.storage.base import (
+from wagtail_vector_index.storage.conversion import (
     StorageProvider,
     StorageVectorIndexMixinProtocol,
 )

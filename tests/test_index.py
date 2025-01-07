@@ -1,7 +1,6 @@
 import unittest
 
 import pytest
-from asgiref.sync import async_to_sync
 from factories import (
     BookPageFactory,
     FilmPageFactory,
@@ -9,8 +8,8 @@ from factories import (
 from faker import Faker
 from testapp.models import AllMediaVectorIndex, BookPage, FilmPage
 from wagtail_vector_index.storage import registry
-from wagtail_vector_index.storage.base import VectorIndex
 from wagtail_vector_index.storage.django import EmbeddingField, ModelKey
+from wagtail_vector_index.storage.index import VectorIndex
 
 fake = Faker()
 
@@ -104,7 +103,7 @@ class TestSimilarityOperations:
             yield from pages
 
         mocker.patch(
-            "wagtail_vector_index.storage.django.EmbeddableFieldsDocumentConverter.bulk_from_documents",
+            "wagtail_vector_index.storage.django.ModelFromDocumentOperator.bulk_from_documents",
             side_effect=gen_pages,
         )
 
@@ -127,7 +126,7 @@ class TestSimilarityOperations:
             yield from pages
 
         mocker.patch(
-            "wagtail_vector_index.storage.django.EmbeddableFieldsDocumentConverter.bulk_from_documents",
+            "wagtail_vector_index.storage.django.ModelFromDocumentOperator.bulk_from_documents",
             side_effect=gen_pages,
         )
 
@@ -144,11 +143,14 @@ class TestSimilarityOperations:
         assert set(actual) == set(pages), f"Expected {pages}, but got {actual}"
 
     @pytest.mark.django_db
-    def test_afind_similar(self, mock_vector_index):
-        objs = BookPage.objects.all()
-        actual = async_to_sync(mock_vector_index.afind_similar)(
-            objs[0], limit=100, include_self=False
-        )
+    async def test_afind_similar(self, mock_vector_index):
+        objs = [obj async for obj in BookPage.objects.all()]
+        actual = [
+            obj
+            async for obj in mock_vector_index.afind_similar(
+                objs[0], limit=100, include_self=False
+            )
+        ]
         assert set(actual) == set(objs[1:]), f"Expected {objs[1:]}, but got {actual}"
 
 
@@ -224,7 +226,7 @@ class TestSearchOperations:
             assert {result.title for result in results} == expected_titles
 
     @pytest.mark.django_db
-    def test_asearch(self, mock_vector_index):
-        objs = BookPage.objects.all()
-        actual = async_to_sync(mock_vector_index.asearch)("test", limit=100)
+    async def test_asearch(self, mock_vector_index):
+        objs = [obj async for obj in BookPage.objects.all()]
+        actual = [obj async for obj in mock_vector_index.asearch("test", limit=100)]
         assert set(actual) == set(objs), f"Expected {objs}, but got {actual}"
