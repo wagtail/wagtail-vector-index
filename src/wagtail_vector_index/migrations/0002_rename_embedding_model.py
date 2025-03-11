@@ -6,6 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
     dependencies = [
         ("wagtail_vector_index", "0001_initial"),
+        ("pgvector", "0002_initial"),
     ]
 
     operations = [
